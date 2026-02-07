@@ -20,6 +20,7 @@ local lastMB1 = 0
 local MB1_COOLDOWN = 0.25 
 local lastMoveTime = tick()
 local lastPosition = Vector3.new(0,0,0)
+local hasStarted = false -- Flag to ensure only one click
 
 -- THE CLICK REMOTE
 local ClickEvent = ReplicatedStorage:WaitForChild("Click")
@@ -44,7 +45,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (UPDATED POSITION)
+-- 2. UI SETUP
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "SanjiScript"; screenGui.Parent = player.PlayerGui
@@ -56,11 +57,9 @@ local function makeDraggable(guiObject)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 end
 
--- MAIN CONTROL FRAME
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,160); makeDraggable(mainFrame)
 mainFrame.Visible = false 
 
--- LOGO HOME BUTTON
 local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,55,0,55)
 houseBtn.Image = "rbxassetid://138612143003295" 
 Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(150, 0, 255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
@@ -68,11 +67,9 @@ houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.
 
 local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255); titleLabel.Font = Enum.Font.GothamBold
 
--- === UPDATED STATUS BAR LOCATION ===
 local statusFrame = Instance.new("Frame", screenGui)
 statusFrame.Name = "StatusCenter"
 statusFrame.Size = UDim2.new(0, 400, 0, 35)
--- Position set to 0.35 Y Scale (Below the heart/timer area)
 statusFrame.Position = UDim2.new(0.5, 0, 0.35, 0) 
 statusFrame.AnchorPoint = Vector2.new(0.5, 0)
 statusFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -95,7 +92,6 @@ statusLabel.Text = "Waiting..."
 
 local function updateStatus(msg) statusLabel.Text = msg end
 
--- MENU BUTTONS
 local function createButton(text, pos, color, callback)
     local btn = Instance.new("TextButton", mainFrame); btn.BackgroundColor3=color; btn.Position=UDim2.new(0.05,0,0,pos); btn.Size=UDim2.new(0.9,0,0,30); btn.Text=text; btn.TextColor3=Color3.new(1,1,1); btn.MouseButton1Click:Connect(function() callback(btn) end)
 end
@@ -124,14 +120,10 @@ local function castSkills(targetModel)
     autoClick() 
     local char = player.Character; if not char then return end; local root = char:FindFirstChild("HumanoidRootPart")
     local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
-    
     local dist = (root.Position - enemyRoot.Position).Magnitude
     local name = targetModel.Name
-    
     local requiredDist = (string.find(name, "Colossus") or string.find(name, "Boss") or string.find(name, "Snowman")) and 50 or 18
-    
     if dist > requiredDist then return end 
-    
     local useSkills = false
     if string.find(name, "Colossus") or string.find(name, "Snowman") or string.find(name, "Boss") or string.find(name, "Progenitor") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") or string.find(name, "Spruced") then 
         useSkills = true
@@ -145,7 +137,6 @@ local function castSkills(targetModel)
         end
         if not bossNearby then useSkills = true end
     end
-    
     if useSkills then 
         for _, key in ipairs({"Q", "E", "R", "F"}) do 
             VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game); 
@@ -156,14 +147,12 @@ local function castSkills(targetModel)
 end
 
 -- ==============================================================================
--- 4. TARGETING (POSSESSED SNOWMAN PRIORITY UPDATE)
+-- 4. TARGETING
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
     local progenitors, bosses, glacials, runners = {}, {}, {}, {}
-    
     for mob, _ in pairs(visitedMobs) do if not mob or not mob.Parent or (mob:FindFirstChild("Humanoid") and mob.Humanoid.Health <= 0) then visitedMobs[mob] = nil end end
-    
     for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Humanoid") and v.Parent ~= player.Character and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
             local mob = v.Parent; local name = mob.Name
@@ -175,59 +164,23 @@ local function getNextTarget()
             end
         end
     end
-
-    local function distSort(a,b) 
-        local distA = (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude
-        local distB = (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude
-        return distA < distB 
-    end
-    
-    table.sort(progenitors, distSort); 
-    table.sort(bosses, distSort); 
-    table.sort(glacials, distSort); 
-    table.sort(runners, distSort)
-
-    -- === PRIORITY 1: CLOSEST PROGENITOR ===
+    local function distSort(a,b) return (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude < (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude end
+    table.sort(progenitors, distSort); table.sort(bosses, distSort); table.sort(glacials, distSort); table.sort(runners, distSort)
     if #progenitors > 0 then return progenitors[1], "KILL" end
-
-    -- === PRIORITY 2: POSSESSED SNOWMAN STRATEGY (ROOM 2) ===
-    -- Strategy: If Possessed Snowman is alive, we MUST AGGRO normal enemies first before killing him.
     local possessedSnowman = nil
-    for _, boss in ipairs(bosses) do
-        if string.find(boss.Name, "Possessed") then
-            possessedSnowman = boss
-            break
-        end
-    end
-
+    for _, boss in ipairs(bosses) do if string.find(boss.Name, "Possessed") then possessedSnowman = boss break end end
     if possessedSnowman then
-        -- Check if there are any un-aggroed runners nearby
-        for _, runner in ipairs(runners) do
-            if not visitedMobs[runner] and (runner.HumanoidRootPart.Position - possessedSnowman.HumanoidRootPart.Position).Magnitude < 150 then
-                return runner, "AGGRO" -- Prioritize tagging enemies
-            end
-        end
-        -- If all runners are tagged, KILL the snowman
+        for _, runner in ipairs(runners) do if not visitedMobs[runner] and (runner.HumanoidRootPart.Position - possessedSnowman.HumanoidRootPart.Position).Magnitude < 150 then return runner, "AGGRO" end end
         return possessedSnowman, "KILL"
     end
-
-    -- === PRIORITY 3: OTHER BOSSES ===
     if #bosses > 0 then return bosses[1], "KILL" end
-
-    -- === PRIORITY 4: GLACIALS & RUNNERS ===
     if #glacials > 0 then
         local targetGlacial = glacials[1]
-        for _, runner in ipairs(runners) do
-            if string.find(runner.Name, "Spruced") and not visitedMobs[runner] then
-                if (runner.HumanoidRootPart.Position - targetGlacial.HumanoidRootPart.Position).Magnitude < 50 then return runner, "AGGRO" end
-            end
-        end
+        for _, runner in ipairs(runners) do if string.find(runner.Name, "Spruced") and not visitedMobs[runner] then if (runner.HumanoidRootPart.Position - targetGlacial.HumanoidRootPart.Position).Magnitude < 50 then return runner, "AGGRO" end end end
         return glacials[1], "KILL"
     end
-
     for _, r in ipairs(runners) do if not visitedMobs[r] then return r, "AGGRO" end end
     if #runners > 0 then return runners[1], "KILL" end
-    
     return nil, "CLEAR"
 end
 
@@ -237,51 +190,17 @@ end
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char:WaitForChild("HumanoidRootPart"); local hum = char:WaitForChild("Humanoid"); local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then root.Anchored = false; return end
     enforceSpeed(hum)
-
     local dist = (root.Position - enemyRoot.Position).Magnitude
-
     if mode == "KILL" and string.find(targetModel.Name, "Spruced") then
         if dist < 18 then
-            root.Anchored = true
-            root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
-            castSkills(targetModel)
-            updateStatus("ANCHORED: Melting " .. targetModel.Name)
-            return
-        else
-            root.Anchored = false
-            updateStatus("CHASING: " .. targetModel.Name)
-        end
-    else
-        root.Anchored = false
-        if mode == "KILL" then updateStatus("KILLING: " .. targetModel.Name) end
-    end
-
-    if (root.Position - lastPosition).Magnitude < 2 and not root.Anchored then 
-        if tick() - lastMoveTime > 6 then 
-            hum.Jump = true; 
-            hum:MoveTo(root.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))); 
-            lastMoveTime = tick(); 
-            return 
-        end 
-    else 
-        lastMoveTime = tick(); lastPosition = root.Position 
-    end
-    
+            root.Anchored = true; root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)); castSkills(targetModel); updateStatus("ANCHORED: Melting " .. targetModel.Name); return
+        else root.Anchored = false; updateStatus("CHASING: " .. targetModel.Name) end
+    else root.Anchored = false; if mode == "KILL" then updateStatus("KILLING: " .. targetModel.Name) end end
+    if (root.Position - lastPosition).Magnitude < 2 and not root.Anchored then if tick() - lastMoveTime > 6 then hum.Jump = true; hum:MoveTo(root.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))); lastMoveTime = tick(); return end else lastMoveTime = tick(); lastPosition = root.Position end
     local attackRange = 20
     if string.find(targetModel.Name, "Colossus") or string.find(targetModel.Name, "Possessed") then attackRange = 40 end
-
-    if mode == "KILL" and dist < attackRange then
-        hum:MoveTo(enemyRoot.Position); 
-        root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
-        castSkills(targetModel); 
-        return
-    end
-
-    if mode == "AGGRO" then
-        updateStatus("AGGRO: Tagging " .. targetModel.Name)
-        if dist < 30 then visitedMobs[targetModel] = true; return end
-    end
-
+    if mode == "KILL" and dist < attackRange then hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)); castSkills(targetModel); return end
+    if mode == "AGGRO" then updateStatus("AGGRO: Tagging " .. targetModel.Name); if dist < 30 then visitedMobs[targetModel] = true; return end end
     if dist < attackRange then hum:MoveTo(enemyRoot.Position) else
         local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true}); local success, _ = pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
         if success and path.Status == Enum.PathStatus.Success then
@@ -299,19 +218,20 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. LOOPS
+-- 6. ONE-SHOT START LOOP
 -- ==============================================================================
 task.spawn(function() 
     while true do 
-        task.wait(2)
-        if _G.AutoStart then 
-            local isFighting = false; local c = player.Character
-            if c then for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("Humanoid") and v.Parent ~= c and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") and (v.Parent.HumanoidRootPart.Position - c.PrimaryPart.Position).Magnitude < 100 then isFighting = true break end end end
-            if not isFighting then
-                pcall(function() ReplicatedStorage:WaitForChild("Start", 1):FireServer() end)
-                local gui = player.PlayerGui; for _, v in pairs(gui:GetDescendants()) do if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then for _, name in ipairs({"Start", "Replay", "Retry", "Play"}) do if string.find(v.Name, name) or (v:IsA("TextButton") and string.find(v.Text, name)) then VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, true, game, 0); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, false, game, 0) end end end end
+        task.wait(1)
+        if _G.AutoStart and not hasStarted then 
+            local startRemote = ReplicatedStorage:FindFirstChild("Start")
+            if startRemote then 
+                pcall(function() startRemote:FireServer() end)
+                hasStarted = true -- STOP CLICKING FOREVER
+                updateStatus("START TRIGGERED")
             end 
         end 
+        -- If game ends/restarts, hasStarted could be reset here if needed.
     end 
 end)
 
@@ -320,10 +240,6 @@ task.spawn(function()
         if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local char = player.Character or player.CharacterAdded:Wait(); local root = char:FindFirstChild("HumanoidRootPart"); local hum = char:FindFirstChild("Humanoid"); if not root or not hum then return end; enforceSpeed(hum); local target, mode = getNextTarget(); if target then runTo(target, mode) else 
             root.Anchored = false 
             visitedMobs = {}; local gate = getBestExit(); if gate then updateStatus("EXITING: Gate Path"); runTo({HumanoidRootPart = gate, Name = "Gate"}, "KITE_TO_EXIT") else updateStatus("SEARCHING: Movement Required"); local me = tick() + 4; while tick() < me and _G.DungeonMaster do char.Humanoid:MoveTo(root.Position + root.CFrame.LookVector * 20); if root.Velocity.Magnitude < 0.5 then char.Humanoid.Jump = true end; RunService.Heartbeat:Wait() end end end end) 
-        else 
-            updateStatus("PAUSED"); 
-            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.Anchored = false end
-            task.wait(1) 
-        end 
+        else updateStatus("PAUSED"); if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.Anchored = false end; task.wait(1) end 
     end 
 end)
