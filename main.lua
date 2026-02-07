@@ -27,7 +27,7 @@ local targetStartTime = 0
 local ClickRemote = ReplicatedStorage:WaitForChild("Click")
 
 -- ==============================================================================
--- 1. WEBHOOK SYSTEM (BUFFERED)
+-- 1. WEBHOOK SYSTEM (FIXED & BUFFERED)
 -- ==============================================================================
 local lootBuffer = {}
 local isSendingWebhook = false
@@ -103,7 +103,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 3. UI SETUP (ROBLOX ICON EDITION)
+-- 3. UI SETUP (CUSTOM LOGO EDITION)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "SanjiScript"; screenGui.Parent = player.PlayerGui
@@ -119,17 +119,17 @@ end
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
 mainFrame.Visible = false 
 
--- ROBLOX LOGO HOME BUTTON
-local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,45,0,45)
-houseBtn.Image = "rbxassetid://10723415535" -- High Quality Roblox Tilt Icon
+-- CUSTOM LOGO HOME BUTTON (Purple SN Logo)
+local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,55,0,55)
+houseBtn.Image = "rbxassetid://138612143003295" -- Applied Custom Purple Logo Image
 houseBtn.ImageColor3 = Color3.fromRGB(255, 255, 255)
-Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(0,255,255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
+Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(150, 0, 255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
 
 houseBtn.MouseButton1Click:Connect(function()
     mainFrame.Visible = not mainFrame.Visible
 end)
 
-local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(0,255,255)
+local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255)
 local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.Text="Waiting..."
 local function updateStatus(msg) statusLabel.Text = msg end
 
@@ -151,6 +151,7 @@ local function getBestExit()
     local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
 end
 
+-- MOBILE MB1 FIX: Pure Remote Click
 local function autoClick() 
     if tick() - lastMB1 > MB1_COOLDOWN then 
         ClickRemote:FireServer(true) 
@@ -232,12 +233,10 @@ end
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char:WaitForChild("HumanoidRootPart"); local hum = char:WaitForChild("Humanoid"); local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
     enforceSpeed(hum)
-    if targetModel.Name == currentTargetName then if tick() - targetStartTime > 4 then mode = "KILL" end else currentTargetName = targetModel.Name; targetStartTime = tick() end
     if (root.Position - lastPosition).Magnitude < 2 then if tick() - lastMoveTime > 6 then hum.Jump = true; hum:MoveTo(root.Position + Vector3.new(math.random(-5, 5), 0, math.random(-5, 5))); lastMoveTime = tick(); return end else lastMoveTime = tick(); lastPosition = root.Position end
     
     if mode == "KILL" and (root.Position - enemyRoot.Position).Magnitude < 20 then
-        if string.find(targetModel.Name, "Glacial") then hum:MoveTo(enemyRoot.Position + ((root.Position - enemyRoot.Position).Unit * 10)); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
-        else hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)) end
+        hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
         castSkills(targetModel); return
     end
 
@@ -248,7 +247,8 @@ local function runTo(targetModel, mode)
         if success and path.Status == Enum.PathStatus.Success then
             for _, wp in ipairs(path:GetWaypoints()) do
                 if not _G.DungeonMaster then break end; enforceSpeed(hum)
-                if wp.Position.Y > root.Position.Y + 4 then hum.Jump = true end
+                -- STAIRS FIX: Only jump if waypoint is > 4.5 studs higher
+                if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
                 hum:MoveTo(wp.Position); autoClick()
                 local stuckTimer = 0
                 while (root.Position - wp.Position).Magnitude > 4 do RunService.Heartbeat:Wait(); enforceSpeed(hum); stuckTimer = stuckTimer + 1; if stuckTimer > 60 then hum.Jump = true; return end end
