@@ -38,7 +38,6 @@ local function sendBufferedWebhook()
         return 
     end
     
-    -- Create the list string
     local descString = "Items Obtained this run:\n"
     for _, item in ipairs(lootBuffer) do
         descString = descString .. "• **" .. tostring(item) .. "**\n"
@@ -49,7 +48,7 @@ local function sendBufferedWebhook()
         ["embeds"] = {{
             ["title"] = "💎 Dungeon Loot Summary",
             ["description"] = descString,
-            ["color"] = 65280, -- Green
+            ["color"] = 65280,
             ["footer"] = {
                 ["text"] = "Sanji's Script | " .. os.date("%X")
             }
@@ -63,26 +62,20 @@ local function sendBufferedWebhook()
         request({Url = _G.WebhookURL, Body = HttpService:JSONEncode(data), Method = "POST", Headers = headers})
     end
     
-    -- Clear buffer
     lootBuffer = {}
     isSendingWebhook = false
 end
 
 local function onChildAdded(child)
     if child:IsA("Tool") then
-        -- Add item to buffer
         table.insert(lootBuffer, child.Name)
-        
-        -- Start timer if not already running
         if not isSendingWebhook then
             isSendingWebhook = true
-            -- Wait 6 seconds to gather all drops (e.g. form a chest) then send ONE embed
             task.delay(6, sendBufferedWebhook)
         end
     end
 end
 
--- Only monitor Backpack (Fixes visual armor bug)
 player.Backpack.ChildAdded:Connect(onChildAdded)
 
 -- ==============================================================================
@@ -92,13 +85,10 @@ task.spawn(function()
     pcall(function()
         local DamageRemote = ReplicatedStorage:WaitForChild("Damage", 10)
         local hookmetamethod = hookmetamethod or getgenv().hookmetamethod
-        
         if hookmetamethod and DamageRemote then
             local OldNameCall
             OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
-                if _G.GodMode and (Self == DamageRemote or (Self.Name == "Damage" and Self.Parent == ReplicatedStorage)) and getnamecallmethod() == "FireServer" then
-                    return nil 
-                end
+                if _G.GodMode and (Self == DamageRemote or (Self.Name == "Damage" and Self.Parent == ReplicatedStorage)) and getnamecallmethod() == "FireServer" then return nil end
                 return OldNameCall(Self, ...)
             end))
         end
@@ -118,17 +108,12 @@ local function makeDraggable(guiObject)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 end
 
--- MAIN FRAME
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
-mainFrame.Visible = false -- **AUTO CLOSE ON START**
+mainFrame.Visible = false 
 
--- HOUSE ICON (Toggle)
 local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,45,0,45); houseBtn.Image="rbxassetid://3926305904"; houseBtn.ImageColor3=Color3.fromRGB(0,255,255)
 Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(0,255,255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
-
-houseBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
-end)
+houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
 
 local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(0,255,255)
 local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.Text="Waiting..."
@@ -142,58 +127,40 @@ createButton("AUTO START: ON", 80, Color3.fromRGB(0,140,255), function(b) _G.Aut
 createButton("GOD MODE: ON", 120, Color3.fromRGB(140,0,255), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
 
 -- ==============================================================================
--- 4. UTILITY & COMBAT (ADAPTIVE SLAYER)
+-- 4. UTILITY & COMBAT
 -- ==============================================================================
 local function enforceSpeed(hum) if hum.WalkSpeed < 26 then hum.WalkSpeed = 26 end end
-
 local function getBestExit()
     local char = player.Character; if not char then return nil end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return nil end
     local gates = {}; for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end
     local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
 end
-
 local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then ClickRemote:FireServer(true); lastMB1 = tick() end end
 
 local function castSkills(targetModel)
     autoClick() 
-    
     local char = player.Character; if not char then return end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return end
     local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
     if (root.Position - enemyRoot.Position).Magnitude > 18 then return end 
     
-    local name = targetModel.Name
-    local useSkills = false
-    
-    -- PRIORITY CHECK: Is this a Boss?
-    if string.find(name, "Colossus") or string.find(name, "Snowman") or string.find(name, "Boss") or string.find(name, "Progenitor") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") or string.find(name, "Wraith") or string.find(name, "Guardian") or string.find(name, "Frostwind") then
-        useSkills = true
+    local name = targetModel.Name; local useSkills = false
+    if string.find(name, "Colossus") or string.find(name, "Snowman") or string.find(name, "Boss") or string.find(name, "Progenitor") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") or string.find(name, "Wraith") or string.find(name, "Guardian") or string.find(name, "Frostwind") then useSkills = true
     else
-        -- TRASH CHECK: Is a Boss nearby?
         local bossNearby = false
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 then
                 local n = v.Parent.Name
-                if string.find(n, "Colossus") or string.find(n, "Snowman") or string.find(n, "Boss") or string.find(n, "Progenitor") then
-                    bossNearby = true
-                    break
-                end
+                if string.find(n, "Colossus") or string.find(n, "Snowman") or string.find(n, "Boss") or string.find(n, "Progenitor") then bossNearby = true; break end
             end
         end
-        
-        -- If NO Boss is nearby, use skills on Trash to clear faster
         if not bossNearby then useSkills = true end
     end
     
-    if useSkills then
-        for _, key in ipairs({"Q", "E", "R", "F"}) do
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game); task.wait() 
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
-        end
-    end
+    if useSkills then for _, key in ipairs({"Q", "E", "R", "F"}) do VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game); task.wait(); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game) end end
 end
 
 -- ==============================================================================
--- 5. TARGETING (CLEANUP: CLOSEST TRASH > FAR BOSS)
+-- 5. TARGETING (GLACIAL SYNC FIX)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -216,6 +183,21 @@ local function getNextTarget()
     local function distSort(a,b) if not a or not b then return false end; return (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude < (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude end
     table.sort(progenitors, distSort); table.sort(bosses, distSort); table.sort(glacials, distSort); table.sort(runners, distSort)
 
+    -- >>> NEW: GLACIAL ENTOURAGE CHECK <<<
+    -- Before attacking any Glacial, check if there are nearby Spruced mobs (within 50 studs of the Glacial)
+    if #glacials > 0 then
+        local targetGlacial = glacials[1]
+        for _, runner in ipairs(runners) do
+            if string.find(runner.Name, "Spruced") and not visitedMobs[runner] then
+                -- Is this Spruced mob protecting the Glacial?
+                if (runner.HumanoidRootPart.Position - targetGlacial.HumanoidRootPart.Position).Magnitude < 50 then
+                    return runner, "AGGRO" -- Aggro the bodyguard first!
+                end
+            end
+        end
+    end
+
+    -- Standard Tag & Drag Cleanup (for isolated mobs)
     if #runners > 0 then
         local closestRunner = runners[1]; if not visitedMobs[closestRunner] then
             local runnerDist = (char.HumanoidRootPart.Position - closestRunner.HumanoidRootPart.Position).Magnitude
@@ -240,7 +222,6 @@ local function runTo(targetModel, mode)
     enforceSpeed(hum)
     
     if targetModel.Name == currentTargetName then if tick() - targetStartTime > 4 then mode = "KILL" end else currentTargetName = targetModel.Name; targetStartTime = tick() end
-    
     if (root.Position - lastPosition).Magnitude < 2 then if tick() - lastMoveTime > 6 then updateStatus("Stuck?"); hum.Jump = true; hum:MoveTo(root.Position + Vector3.new(math.random(-5,5),0,math.random(-5,5))); lastMoveTime = tick(); return end else lastMoveTime = tick(); lastPosition = root.Position end
     local closeMobs = 0; for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("HumanoidRootPart") and v.Parent ~= char and (v.Position - root.Position).Magnitude < 4 then closeMobs = closeMobs + 1 end end; if closeMobs > 3 then hum.Jump = true end
 
