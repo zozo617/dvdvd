@@ -19,7 +19,7 @@ local Inventory = workspace.Inventories[player.Name]
 _G.DungeonMaster = true 
 _G.AutoStart = true       
 _G.GodMode = true     
-local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR" 
+local webhookUrl = "https://discord.com/api/webhooks/1469715145231044639/o8-1Y_7sWpRQmK-2MwQCAzozLtczyx70M5NTTS4uTx-s2dsXLrzQrsnDeMBSHha90aB8" 
 
 -- Internal Variables
 local visitedMobs = {} 
