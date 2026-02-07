@@ -63,36 +63,23 @@ local lastMB1 = 0
 local MB1_COOLDOWN = 0.25 
 local lastMoveTime = tick()
 local lastPosition = Vector3.new(0,0,0)
+local lastUIInteraction = tick() -- AUTO-HIDE TIMER
 local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 
 if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiScript"
 
--- MOBILE DRAGGABLE FUNCTION
 local function makeDraggable(guiObject)
     local dragging, dragInput, dragStart, startPos
-    local function update(input)
-        local delta = input.Position - dragStart
-        guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
     guiObject.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = guiObject.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
+            dragging = true; lastUIInteraction = tick() -- Reset timer
+            dragStart = input.Position; startPos = guiObject.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
         end
     end)
-    guiObject.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then update(input) end
-    end)
+    guiObject.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+    UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 end
 
 -- MAIN FRAME
@@ -100,15 +87,15 @@ local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; 
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 local mainStroke = Instance.new("UIStroke", mainFrame); mainStroke.Color = Color3.fromRGB(138, 43, 226); mainStroke.Thickness = 2
 
--- HOME BUTTON (Your Custom Logo)
+-- HOME BUTTON (Logo)
 local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(15, 15, 18); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,60,0,60); houseBtn.Image = "rbxassetid://138612143003295" 
-Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 15); makeDraggable(houseBtn); houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 15); makeDraggable(houseBtn)
+houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible; lastUIInteraction = tick() end)
 local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(138, 43, 226); houseStroke.Thickness = 2
 
 -- TAB NAVIGATION
 local tabHolder = Instance.new("Frame", mainFrame); tabHolder.Size = UDim2.new(1, 0, 0, 30); tabHolder.BackgroundTransparency = 1; tabHolder.Position = UDim2.new(0, 0, 0, 35)
 local contentHolder = Instance.new("Frame", mainFrame); contentHolder.Size = UDim2.new(1, 0, 1, -70); contentHolder.Position = UDim2.new(0, 0, 0, 70); contentHolder.BackgroundTransparency = 1
-
 local title = Instance.new("TextLabel", mainFrame); title.Size=UDim2.new(1,0,0,35); title.BackgroundTransparency=1; title.Text="SANJI PREMIUM"; title.TextColor3=Color3.fromRGB(180, 100, 255); title.Font = Enum.Font.GothamBold; title.TextSize = 14
 
 local tabs = {}
@@ -117,6 +104,7 @@ local function createTab(name, order)
     local underline = Instance.new("Frame", tabBtn); underline.Size = UDim2.new(0.8, 0, 0, 2); underline.Position = UDim2.new(0.1, 0, 1, -2); underline.BackgroundColor3 = Color3.fromRGB(138, 43, 226); underline.Visible = false
     local container = Instance.new("ScrollingFrame", contentHolder); container.Size = UDim2.new(1, 0, 1, 0); container.BackgroundTransparency = 1; container.Visible = false; container.CanvasSize = UDim2.new(0,0,0,0); container.ScrollBarThickness = 0
     tabBtn.MouseButton1Click:Connect(function()
+        lastUIInteraction = tick() -- Reset timer
         for _, t in pairs(tabs) do t.btn.TextColor3 = Color3.fromRGB(150, 150, 150); t.line.Visible = false; t.view.Visible = false end
         tabBtn.TextColor3 = Color3.new(1, 1, 1); underline.Visible = true; container.Visible = true
     end)
@@ -129,15 +117,25 @@ tabs["FARMING"].btn.TextColor3 = Color3.new(1, 1, 1); tabs["FARMING"].line.Visib
 
 local function addToggle(parent, text, y, default, callback)
     local btn = Instance.new("TextButton", parent); btn.Size = UDim2.new(0.9, 0, 0, 35); btn.Position = UDim2.new(0.05, 0, 0, y); btn.BackgroundColor3 = default and Color3.fromRGB(40, 20, 80) or Color3.fromRGB(25, 25, 30); btn.Text = text; btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 11; Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    btn.MouseButton1Click:Connect(function() local s = callback(); btn.BackgroundColor3 = s and Color3.fromRGB(70, 30, 150) or Color3.fromRGB(25, 25, 30) end)
+    btn.MouseButton1Click:Connect(function() lastUIInteraction = tick(); local s = callback(); btn.BackgroundColor3 = s and Color3.fromRGB(70, 30, 150) or Color3.fromRGB(25, 25, 30) end)
 end
 
 addToggle(farmTab, "AUTO FARM", 10, _G.DungeonMaster, function() _G.DungeonMaster = not _G.DungeonMaster return _G.DungeonMaster end)
 addToggle(farmTab, "AUTO START", 55, _G.AutoStart, function() _G.AutoStart = not _G.AutoStart return _G.AutoStart end)
 addToggle(charTab, "GOD MODE", 10, _G.GodMode, function() _G.GodMode = not _G.GodMode return _G.GodMode end)
 
+-- AUTO-HIDE LOOP
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if mainFrame.Visible and tick() - lastUIInteraction > 30 then
+            mainFrame.Visible = false
+        end
+    end
+end)
+
 -- ==============================================================================
--- 3. BACKEND
+-- 3. BACKEND (DO NOT TOUCH)
 -- ==============================================================================
 task.spawn(function() pcall(function() local dr = ReplicatedStorage:WaitForChild("Damage", 10); local h = hookmetamethod or getgenv().hookmetamethod; if h and dr then local o; o = h(game, "__namecall", newcclosure(function(s, ...) if _G.GodMode and (s == dr or (s.Name == "Damage" and s.Parent == ReplicatedStorage)) and getnamecallmethod() == "FireServer" then return nil end return o(s, ...) end)) end end) end)
 local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then ClickEvent:FireServer(true); lastMB1 = tick() end end
