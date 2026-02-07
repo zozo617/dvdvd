@@ -103,7 +103,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 3. UI SETUP (GHOST MODE)
+-- 3. UI SETUP (ROBLOX ICON EDITION)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "SanjiScript"; screenGui.Parent = player.PlayerGui
@@ -115,12 +115,19 @@ local function makeDraggable(guiObject)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 end
 
+-- MAIN FRAME
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
 mainFrame.Visible = false 
 
-local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,45,0,45); houseBtn.Image="rbxassetid://3926305904"; houseBtn.ImageColor3=Color3.fromRGB(0,255,255)
+-- ROBLOX LOGO HOME BUTTON
+local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,45,0,45)
+houseBtn.Image = "rbxassetid://10723415535" -- High Quality Roblox Tilt Icon
+houseBtn.ImageColor3 = Color3.fromRGB(255, 255, 255)
 Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(0,255,255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
-houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+
+houseBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
 
 local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(0,255,255)
 local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.Text="Waiting..."
@@ -137,14 +144,19 @@ createButton("GOD MODE: ON", 120, Color3.fromRGB(140,0,255), function(b) _G.GodM
 -- 4. UTILITY & COMBAT
 -- ==============================================================================
 local function enforceSpeed(hum) if hum.WalkSpeed < 26 then hum.WalkSpeed = 26 end end
+
 local function getBestExit()
     local char = player.Character; if not char then return nil end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return nil end
     local gates = {}; for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end
     local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
 end
 
--- MOBILE FIX: Pure Remote Click (No screen tapping)
-local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then ClickRemote:FireServer(true); lastMB1 = tick() end end
+local function autoClick() 
+    if tick() - lastMB1 > MB1_COOLDOWN then 
+        ClickRemote:FireServer(true) 
+        lastMB1 = tick() 
+    end 
+end
 
 local function castSkills(targetModel)
     autoClick() 
@@ -189,7 +201,6 @@ local function getNextTarget()
     local function distSort(a,b) if not a or not b then return false end; return (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude < (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude end
     table.sort(progenitors, distSort); table.sort(bosses, distSort); table.sort(glacials, distSort); table.sort(runners, distSort)
 
-    -- GLACIAL ENTOURAGE CHECK (Room 5 Fix)
     if #glacials > 0 then
         local targetGlacial = glacials[1]
         for _, runner in ipairs(runners) do
@@ -237,7 +248,6 @@ local function runTo(targetModel, mode)
         if success and path.Status == Enum.PathStatus.Success then
             for _, wp in ipairs(path:GetWaypoints()) do
                 if not _G.DungeonMaster then break end; enforceSpeed(hum)
-                -- STAIRS FIX: Only jump if waypoint is > 4 studs higher
                 if wp.Position.Y > root.Position.Y + 4 then hum.Jump = true end
                 hum:MoveTo(wp.Position); autoClick()
                 local stuckTimer = 0
@@ -249,7 +259,7 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 7. LOOPS (SAFETY LOCK)
+-- 7. LOOPS
 -- ==============================================================================
 task.spawn(function() 
     while true do 
