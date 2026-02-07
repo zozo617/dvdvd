@@ -1,3 +1,315 @@
---// This file was created by XHider https://discord.com/invite/E2N7w35zkt
+local PathfindingService = game:GetService("PathfindingService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService") 
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
 
-local t=game:GetService("PathfindingService")local H=game:GetService("VirtualInputManager")local q=game:GetService("RunService")local d=game:GetService("ReplicatedStorage")local X=game:GetService("Players")local c=game:GetService("Workspace")local O=game:GetService("HttpService")local A=game:GetService("UserInputService")local T=X.LocalPlayer _G.WebhookURL="https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"_G.DungeonMaster=true _G.AutoStart=true _G.GodMode=true local G={}local W=0 local h=.25 local M=tick()local R=Vector3.new(0,0,0)local b=""local a=0 local n=d:WaitForChild("Click")local N={}local F=false local function l()if _G.WebhookURL==""or#N==0 then F=false return end local t="Items Obtained this run:\n"for H,q in ipairs(N)do t=t..("\226\128\162 **"..(tostring(q).."**\n"))end local H={content="";embeds={{title="\240\159\146\142 Dungeon Loot Summary";description=t;color=65280;footer={text="Sanji\'s Script | "..os.date("%X")}}}}local q={["Content-Type"]="application/json"}local d=http_request or request or HttpPost or syn.request if d then d({Url=_G.WebhookURL;Body=O:JSONEncode(H);Method="POST",Headers=q})end N={}F=false end local function v(t)if t:IsA("Tool")then table.insert(N,t.Name)if not F then F=true task.delay(6,l)end end end T.Backpack.ChildAdded:Connect(v)task.spawn(function()pcall(function()local t=d:WaitForChild("Damage",10)local H=hookmetamethod or(getgenv()).hookmetamethod if H and t then local q q=H(game,"__namecall",newcclosure(function(H,...)if _G.GodMode and((H==t or H.Name=="Damage"and H.Parent==d)and getnamecallmethod()=="FireServer")then return nil end return q(H,...)end))end end)end)if T.PlayerGui:FindFirstChild("SanjiScript")then T.PlayerGui.SanjiScript:Destroy()end local p=Instance.new("ScreenGui")p.Name="SanjiScript"p.Parent=T.PlayerGui local function Y(t)local H,q,d,X t.InputBegan:Connect(function(q)if q.UserInputType==Enum.UserInputType.MouseButton1 then H=true d=q.Position X=t.Position q.Changed:Connect(function()if q.UserInputState==Enum.UserInputState.End then H=false end end)end end)t.InputChanged:Connect(function(t)if t.UserInputType==Enum.UserInputType.MouseMovement then q=t end end)A.InputChanged:Connect(function(c)if c==q and H then local H=c.Position-d t.Position=UDim2.new(X.X.Scale,X.X.Offset+H.X,X.Y.Scale,X.Y.Offset+H.Y)end end)end local i=Instance.new("Frame",p)i.Name="MainFrame"i.BackgroundColor3=Color3.fromRGB(15,15,20)i.Position=UDim2.new(.7,0,.25,0)i.Size=UDim2.new(0,170,0,180)Y(i)i.Visible=false local x=Instance.new("ImageButton",p)x.Name="HomeBtn"x.BackgroundColor3=Color3.fromRGB(20,20,20)x.Position=UDim2.new(.9,0,.15,0)x.Size=UDim2.new(0,45,0,45)x.Image="rbxassetid://3926305904"x.ImageColor3=Color3.fromRGB(0,255,255);(Instance.new("UICorner",x)).CornerRadius=UDim.new(0,12)local Q=Instance.new("UIStroke",x)Q.Color=Color3.fromRGB(0,255,255)Q.Thickness=1.5 Y(x)x.MouseButton1Click:Connect(function()i.Visible=not i.Visible end)local I=Instance.new("TextLabel",i)I.Size=UDim2.new(1,0,0,30)I.BackgroundTransparency=1 I.Text="Sanji\'s Script"I.TextColor3=Color3.fromRGB(0,255,255)local V=Instance.new("TextLabel",i)V.Size=UDim2.new(1,0,0,20)V.Position=UDim2.new(0,0,1,-20)V.BackgroundTransparency=1 V.TextColor3=Color3.fromRGB(150,150,150)V.Text="Waiting..."local function L(t)V.Text=t end local function S(t,H,q,d)local X=Instance.new("TextButton",i)X.BackgroundColor3=q X.Position=UDim2.new(.05,0,0,H)X.Size=UDim2.new(.9,0,0,30)X.Text=t X.TextColor3=Color3.new(1,1,1)X.MouseButton1Click:Connect(function()d(X)end)end S("AUTO FARM: ON",40,Color3.fromRGB(0,180,100),function(t)_G.DungeonMaster=not _G.DungeonMaster t.BackgroundColor3=_G.DungeonMaster and Color3.fromRGB(0,180,100)or Color3.fromRGB(200,60,60)t.Text=_G.DungeonMaster and"AUTO FARM: ON"or"AUTO FARM: OFF"end)S("AUTO START: ON",80,Color3.fromRGB(0,140,255),function(t)_G.AutoStart=not _G.AutoStart t.BackgroundColor3=_G.AutoStart and Color3.fromRGB(0,140,255)or Color3.fromRGB(80,80,80)t.Text=_G.AutoStart and"AUTO START: ON"or"AUTO START: OFF"end)S("GOD MODE: ON",120,Color3.fromRGB(140,0,255),function(t)_G.GodMode=not _G.GodMode t.BackgroundColor3=_G.GodMode and Color3.fromRGB(140,0,255)or Color3.fromRGB(80,80,80)t.Text=_G.GodMode and"GOD MODE: ON"or"GOD MODE: OFF"end)local function C(t)if t.WalkSpeed<26 then t.WalkSpeed=26 end end local function e()local t=T.Character if not t then return nil end local H=t:FindFirstChild("HumanoidRootPart")if not H then return nil end local q={}for t,H in pairs(c:GetDescendants())do if H.Name=="Gate"or H.Name=="Portal"then table.insert(q,H)end end local d,X=nil,-1 for t,q in ipairs(q)do local c=(q.Position-H.Position).Magnitude if c>X then X=c d=q end end return d end local function f()if tick()-W>h then n:FireServer(true)W=tick()end end local function j(t)f()local q=T.Character if not q then return end local d=q:FindFirstChild("HumanoidRootPart")if not d then return end local X=t:FindFirstChild("HumanoidRootPart")if not X then return end if(d.Position-X.Position).Magnitude>18 then return end local O=t.Name local A=false if string.find(O,"Colossus")or string.find(O,"Snowman")or string.find(O,"Boss")or string.find(O,"Progenitor")or string.find(O,"Possessed")or string.find(O,"Elemental")or string.find(O,"Sorcerer")or string.find(O,"Wraith")or string.find(O,"Guardian")or string.find(O,"Frostwind")then A=true else local t=false for H,d in pairs(c:GetDescendants())do if d:IsA("Humanoid")and(d.Parent~=q and d.Health>0)then local H=d.Parent.Name if string.find(H,"Colossus")or string.find(H,"Snowman")or string.find(H,"Boss")or string.find(H,"Progenitor")then t=true break end end end if not t then A=true end end if A then for t,q in ipairs({"Q","E","R";"F"})do H:SendKeyEvent(true,Enum.KeyCode[q],false,game)task.wait()H:SendKeyEvent(false,Enum.KeyCode[q],false,game)end end end local function P()local t=T.Character if not t or not t:FindFirstChild("HumanoidRootPart")then return nil,"CLEAR"end local H,q,d,X={},{},{},{}for t,H in pairs(G)do if not t or not t.Parent or t:FindFirstChild("Humanoid")and t.Humanoid.Health<=0 then G[t]=nil end end for t,c in pairs(c:GetDescendants())do if c:IsA("Humanoid")and(c.Parent~=T.Character and(c.Health>0 and c.Parent:FindFirstChild("HumanoidRootPart")))then local t=c.Parent local O=t.Name if not string.find(O,"Frostwoven")and not string.find(O,"Gate")then if string.find(O,"Progenitor")then table.insert(H,t)elseif string.find(O,"Snowman")or string.find(O,"Colossus")or string.find(O,"Boss")or string.find(O,"Possessed")or string.find(O,"Elemental")or string.find(O,"Sorcerer")then table.insert(q,t)elseif string.find(O,"Glacial")then table.insert(d,t)else table.insert(X,t)end end end end local function O(H,q)if not H or not q then return false end return(t.HumanoidRootPart.Position-H.HumanoidRootPart.Position).Magnitude<(t.HumanoidRootPart.Position-q.HumanoidRootPart.Position).Magnitude end table.sort(H,O)table.sort(q,O)table.sort(d,O)table.sort(X,O)if#X>0 then local d=X[1]if not G[d]then local X=(t.HumanoidRootPart.Position-d.HumanoidRootPart.Position).Magnitude if X<40 then local X=false if#H>0 and(t.HumanoidRootPart.Position-H[1].HumanoidRootPart.Position).Magnitude>50 then X=true end if#q>0 and(t.HumanoidRootPart.Position-q[1].HumanoidRootPart.Position).Magnitude>50 then X=true end if X then return d,"AGGRO"end end end end if#H>0 then return H[1],"KILL"end if#q>0 then return q[1],"KILL"end if#d>0 then return d[1],"KILL"end for t,H in ipairs(X)do if not G[H]then return H,"AGGRO"end end if#X>0 then return X[1],"KILL"end return nil,"CLEAR"end local function Z(H,d)local X=T.Character local O=X:WaitForChild("HumanoidRootPart")local A=X:WaitForChild("Humanoid")local W=H:FindFirstChild("HumanoidRootPart")if not W then return end C(A)if H.Name==b then if tick()-a>4 then d="KILL"end else b=H.Name a=tick()end if(O.Position-R).Magnitude<2 then if tick()-M>6 then L("Stuck?")A.Jump=true A:MoveTo(O.Position+Vector3.new(math.random(-5,5),0,math.random(-5,5)))M=tick()return end else M=tick()R=O.Position end local h=0 for t,H in pairs(c:GetDescendants())do if H:IsA("HumanoidRootPart")and(H.Parent~=X and(H.Position-O.Position).Magnitude<4)then h=h+1 end end if h>3 then A.Jump=true end if d=="KILL"and(O.Position-W.Position).Magnitude<20 then if string.find(H.Name,"Glacial")then L("Herding...")A:MoveTo(W.Position+(O.Position-W.Position).Unit*10)O.CFrame=CFrame.new(O.Position,Vector3.new(W.Position.X,O.Position.Y,W.Position.Z))else L("Killing: "..H.Name)A:MoveTo(W.Position)O.CFrame=CFrame.new(O.Position,Vector3.new(W.Position.X,O.Position.Y,W.Position.Z))end j(H)return end local n=(O.Position-W.Position).Magnitude if d=="AGGRO"and n<30 then G[H]=true L("Tagged!")return end if n<20 then A:MoveTo(W.Position)else local X=t:CreatePath({AgentRadius=3;AgentCanJump=true})local c,T=pcall(function()X:ComputeAsync(O.Position,W.Position)end)if c and X.Status==Enum.PathStatus.Success then for t,X in ipairs(X:GetWaypoints())do if not _G.DungeonMaster then break end C(A)if X.Position.Y>O.Position.Y+2 then A.Jump=true end A:MoveTo(X.Position)f()local c=0 while(O.Position-X.Position).Magnitude>4 do q.Heartbeat:Wait()C(A)c=c+1 if c>60 then L("Blocked")A.Jump=true return end end if d=="AGGRO"and(O.Position-W.Position).Magnitude<30 then G[H]=true return end end else A:MoveTo(W.Position)end end end task.spawn(function()while true do task.wait(2)if _G.AutoStart then pcall(function()(d:WaitForChild("Start",1)):FireServer()end)local t=T.PlayerGui for t,q in pairs(t:GetDescendants())do if(q:IsA("TextButton")or q:IsA("ImageButton"))and q.Visible then for t,d in ipairs({"Start";"Replay","Retry","Play"})do if string.find(q.Name,d)or q:IsA("TextButton")and string.find(q.Text,d)then H:SendMouseButtonEvent(q.AbsolutePosition.X+q.AbsoluteSize.X/2,q.AbsolutePosition.Y+q.AbsoluteSize.Y/2,0,true,game,0)task.wait(.1)H:SendMouseButtonEvent(q.AbsolutePosition.X+q.AbsoluteSize.X/2,q.AbsolutePosition.Y+q.AbsoluteSize.Y/2,0,false,game,0)end end end end end end end)task.spawn(function()while true do if _G.DungeonMaster then q.Heartbeat:Wait()pcall(function()local t=T.Character or T.CharacterAdded:Wait()local H=t:FindFirstChild("HumanoidRootPart")local d=t:FindFirstChild("Humanoid")if not H or not d then return end C(d)local X,c=P()if X then L("Target: "..X.Name)Z(X,c)else L("Exit...")G={}local d=e()if d then Z({HumanoidRootPart=d,Name="Gate"},"KITE_TO_EXIT")else L("Cross...")local d=tick()+4 while tick()<d and _G.DungeonMaster do t.Humanoid:MoveTo(H.Position+H.CFrame.LookVector*20)if H.Velocity.Magnitude<.5 then t.Humanoid.Jump=true end q.Heartbeat:Wait()end end end end)else L("PAUSED")task.wait(1)end end end)
+-- ==============================================================================
+-- 0. CONFIGURATION
+-- ==============================================================================
+_G.WebhookURL = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
+_G.DungeonMaster = true 
+_G.AutoStart = true     
+_G.GodMode = true       
+
+-- Internal Variables
+local visitedMobs = {} 
+local lastMB1 = 0           
+local MB1_COOLDOWN = 0.25 
+local lastMoveTime = tick()
+local lastPosition = Vector3.new(0,0,0)
+local currentTargetName = ""
+local targetStartTime = 0
+local ClickRemote = ReplicatedStorage:WaitForChild("Click")
+
+-- ==============================================================================
+-- 1. WEBHOOK SYSTEM (BUFFERED)
+-- ==============================================================================
+local lootBuffer = {}
+local isSendingWebhook = false
+
+local function sendBufferedWebhook()
+    if _G.WebhookURL == "" or #lootBuffer == 0 then 
+        isSendingWebhook = false
+        return 
+    end
+    
+    -- Create the list string
+    local descString = "Items Obtained this run:\n"
+    for _, item in ipairs(lootBuffer) do
+        descString = descString .. "• **" .. tostring(item) .. "**\n"
+    end
+    
+    local data = {
+        ["content"] = "",
+        ["embeds"] = {{
+            ["title"] = "💎 Dungeon Loot Summary",
+            ["description"] = descString,
+            ["color"] = 65280, -- Green
+            ["footer"] = {
+                ["text"] = "Sanji's Script | " .. os.date("%X")
+            }
+        }}
+    }
+    
+    local headers = {["Content-Type"] = "application/json"}
+    local request = http_request or request or HttpPost or syn.request
+    
+    if request then
+        request({Url = _G.WebhookURL, Body = HttpService:JSONEncode(data), Method = "POST", Headers = headers})
+    end
+    
+    -- Clear buffer
+    lootBuffer = {}
+    isSendingWebhook = false
+end
+
+local function onChildAdded(child)
+    if child:IsA("Tool") then
+        -- Add item to buffer
+        table.insert(lootBuffer, child.Name)
+        
+        -- Start timer if not already running
+        if not isSendingWebhook then
+            isSendingWebhook = true
+            -- Wait 6 seconds to gather all drops (e.g. form a chest) then send ONE embed
+            task.delay(6, sendBufferedWebhook)
+        end
+    end
+end
+
+-- Only monitor Backpack (Fixes visual armor bug)
+player.Backpack.ChildAdded:Connect(onChildAdded)
+
+-- ==============================================================================
+-- 2. GOD MODE HOOK
+-- ==============================================================================
+task.spawn(function()
+    pcall(function()
+        local DamageRemote = ReplicatedStorage:WaitForChild("Damage", 10)
+        local hookmetamethod = hookmetamethod or getgenv().hookmetamethod
+        
+        if hookmetamethod and DamageRemote then
+            local OldNameCall
+            OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
+                if _G.GodMode and (Self == DamageRemote or (Self.Name == "Damage" and Self.Parent == ReplicatedStorage)) and getnamecallmethod() == "FireServer" then
+                    return nil 
+                end
+                return OldNameCall(Self, ...)
+            end))
+        end
+    end)
+end)
+
+-- ==============================================================================
+-- 3. UI SETUP (GHOST MODE)
+-- ==============================================================================
+if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
+local screenGui = Instance.new("ScreenGui"); screenGui.Name = "SanjiScript"; screenGui.Parent = player.PlayerGui
+
+local function makeDraggable(guiObject)
+    local dragging, dragInput, dragStart, startPos
+    guiObject.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = guiObject.Position; input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end) end end)
+    guiObject.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end end)
+    UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
+end
+
+-- MAIN FRAME
+local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
+mainFrame.Visible = false -- **AUTO CLOSE ON START**
+
+-- HOUSE ICON (Toggle)
+local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,45,0,45); houseBtn.Image="rbxassetid://3926305904"; houseBtn.ImageColor3=Color3.fromRGB(0,255,255)
+Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(0,255,255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
+
+houseBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(0,255,255)
+local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.Text="Waiting..."
+local function updateStatus(msg) statusLabel.Text = msg end
+
+local function createButton(text, pos, color, callback)
+    local btn = Instance.new("TextButton", mainFrame); btn.BackgroundColor3=color; btn.Position=UDim2.new(0.05,0,0,pos); btn.Size=UDim2.new(0.9,0,0,30); btn.Text=text; btn.TextColor3=Color3.new(1,1,1); btn.MouseButton1Click:Connect(function() callback(btn) end)
+end
+createButton("AUTO FARM: ON", 40, Color3.fromRGB(0,180,100), function(b) _G.DungeonMaster = not _G.DungeonMaster; b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60); b.Text = _G.DungeonMaster and "AUTO FARM: ON" or "AUTO FARM: OFF" end)
+createButton("AUTO START: ON", 80, Color3.fromRGB(0,140,255), function(b) _G.AutoStart = not _G.AutoStart; b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80); b.Text = _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF" end)
+createButton("GOD MODE: ON", 120, Color3.fromRGB(140,0,255), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
+
+-- ==============================================================================
+-- 4. UTILITY & COMBAT (ADAPTIVE SLAYER)
+-- ==============================================================================
+local function enforceSpeed(hum) if hum.WalkSpeed < 26 then hum.WalkSpeed = 26 end end
+
+local function getBestExit()
+    local char = player.Character; if not char then return nil end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return nil end
+    local gates = {}; for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end
+    local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
+end
+
+local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then ClickRemote:FireServer(true); lastMB1 = tick() end end
+
+local function castSkills(targetModel)
+    autoClick() 
+    
+    local char = player.Character; if not char then return end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return end
+    local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
+    if (root.Position - enemyRoot.Position).Magnitude > 18 then return end 
+    
+    local name = targetModel.Name
+    local useSkills = false
+    
+    -- PRIORITY CHECK: Is this a Boss?
+    if string.find(name, "Colossus") or string.find(name, "Snowman") or string.find(name, "Boss") or string.find(name, "Progenitor") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") or string.find(name, "Wraith") or string.find(name, "Guardian") or string.find(name, "Frostwind") then
+        useSkills = true
+    else
+        -- TRASH CHECK: Is a Boss nearby?
+        local bossNearby = false
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 then
+                local n = v.Parent.Name
+                if string.find(n, "Colossus") or string.find(n, "Snowman") or string.find(n, "Boss") or string.find(n, "Progenitor") then
+                    bossNearby = true
+                    break
+                end
+            end
+        end
+        
+        -- If NO Boss is nearby, use skills on Trash to clear faster
+        if not bossNearby then useSkills = true end
+    end
+    
+    if useSkills then
+        for _, key in ipairs({"Q", "E", "R", "F"}) do
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game); task.wait() 
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
+        end
+    end
+end
+
+-- ==============================================================================
+-- 5. TARGETING (CLEANUP: CLOSEST TRASH > FAR BOSS)
+-- ==============================================================================
+local function getNextTarget()
+    local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
+    local progenitors, bosses, glacials, runners = {}, {}, {}, {}
+    
+    for mob, _ in pairs(visitedMobs) do if not mob or not mob.Parent or (mob:FindFirstChild("Humanoid") and mob.Humanoid.Health <= 0) then visitedMobs[mob] = nil end end
+    
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("Humanoid") and v.Parent ~= player.Character and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
+            local mob = v.Parent; local name = mob.Name
+            if not string.find(name, "Frostwoven") and not string.find(name, "Gate") then 
+                if string.find(name, "Progenitor") then table.insert(progenitors, mob)
+                elseif string.find(name, "Snowman") or string.find(name, "Colossus") or string.find(name, "Boss") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") then table.insert(bosses, mob)
+                elseif string.find(name, "Glacial") then table.insert(glacials, mob)
+                else table.insert(runners, mob) end
+            end
+        end
+    end
+    
+    local function distSort(a,b) if not a or not b then return false end; return (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude < (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude end
+    table.sort(progenitors, distSort); table.sort(bosses, distSort); table.sort(glacials, distSort); table.sort(runners, distSort)
+
+    if #runners > 0 then
+        local closestRunner = runners[1]; if not visitedMobs[closestRunner] then
+            local runnerDist = (char.HumanoidRootPart.Position - closestRunner.HumanoidRootPart.Position).Magnitude
+            if runnerDist < 40 then
+                local farBoss = false
+                if #progenitors > 0 and (char.HumanoidRootPart.Position - progenitors[1].HumanoidRootPart.Position).Magnitude > 50 then farBoss = true end
+                if #bosses > 0 and (char.HumanoidRootPart.Position - bosses[1].HumanoidRootPart.Position).Magnitude > 50 then farBoss = true end
+                if farBoss then return closestRunner, "AGGRO" end
+            end
+        end
+    end
+    
+    if #progenitors > 0 then return progenitors[1], "KILL" end; if #bosses > 0 then return bosses[1], "KILL" end; if #glacials > 0 then return glacials[1], "KILL" end
+    for _, r in ipairs(runners) do if not visitedMobs[r] then return r, "AGGRO" end end; if #runners > 0 then return runners[1], "KILL" end; return nil, "CLEAR"
+end
+
+-- ==============================================================================
+-- 6. NAVIGATION
+-- ==============================================================================
+local function runTo(targetModel, mode)
+    local char = player.Character; local root = char:WaitForChild("HumanoidRootPart"); local hum = char:WaitForChild("Humanoid"); local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
+    enforceSpeed(hum)
+    
+    if targetModel.Name == currentTargetName then if tick() - targetStartTime > 4 then mode = "KILL" end else currentTargetName = targetModel.Name; targetStartTime = tick() end
+    
+    if (root.Position - lastPosition).Magnitude < 2 then if tick() - lastMoveTime > 6 then updateStatus("Stuck?"); hum.Jump = true; hum:MoveTo(root.Position + Vector3.new(math.random(-5,5),0,math.random(-5,5))); lastMoveTime = tick(); return end else lastMoveTime = tick(); lastPosition = root.Position end
+    local closeMobs = 0; for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("HumanoidRootPart") and v.Parent ~= char and (v.Position - root.Position).Magnitude < 4 then closeMobs = closeMobs + 1 end end; if closeMobs > 3 then hum.Jump = true end
+
+    if mode == "KILL" and (root.Position - enemyRoot.Position).Magnitude < 20 then
+        if string.find(targetModel.Name, "Glacial") then updateStatus("Herding..."); hum:MoveTo(enemyRoot.Position + ((root.Position - enemyRoot.Position).Unit * 10)); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
+        else updateStatus("Killing: " .. targetModel.Name); hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)) end
+        castSkills(targetModel); return
+    end
+
+    local dist = (root.Position - enemyRoot.Position).Magnitude
+    if mode == "AGGRO" and dist < 30 then visitedMobs[targetModel] = true; updateStatus("Tagged!"); return end
+    if dist < 20 then hum:MoveTo(enemyRoot.Position) else
+        local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true}); local success, _ = pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
+        if success and path.Status == Enum.PathStatus.Success then
+            for _, wp in ipairs(path:GetWaypoints()) do
+                if not _G.DungeonMaster then break end; enforceSpeed(hum)
+                if wp.Position.Y > root.Position.Y + 2 then hum.Jump = true end
+                hum:MoveTo(wp.Position); autoClick()
+                local stuckTimer = 0
+                while (root.Position - wp.Position).Magnitude > 4 do 
+                    RunService.Heartbeat:Wait(); enforceSpeed(hum); stuckTimer = stuckTimer + 1
+                    if stuckTimer > 60 then updateStatus("Blocked"); hum.Jump = true; return end 
+                end
+                if mode == "AGGRO" and (root.Position - enemyRoot.Position).Magnitude < 30 then visitedMobs[targetModel] = true; return end
+            end
+        else hum:MoveTo(enemyRoot.Position) end
+    end
+end
+
+-- ==============================================================================
+-- 7. LOOPS
+-- ==============================================================================
+task.spawn(function() while true do task.wait(2); if _G.AutoStart then pcall(function() ReplicatedStorage:WaitForChild("Start", 1):FireServer() end); local gui = player.PlayerGui; for _, v in pairs(gui:GetDescendants()) do if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then for _, name in ipairs({"Start", "Replay", "Retry", "Play"}) do if string.find(v.Name, name) or (v:IsA("TextButton") and string.find(v.Text, name)) then VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, true, game, 0); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, false, game, 0) end end end end end end end)
+
+task.spawn(function() 
+    while true do 
+        if _G.DungeonMaster then 
+            RunService.Heartbeat:Wait()
+            pcall(function() 
+                local char = player.Character or player.CharacterAdded:Wait()
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChild("Humanoid")
+                if not root or not hum then return end
+                enforceSpeed(hum)
+                
+                local target, mode = getNextTarget()
+                if target then 
+                    updateStatus("Target: " .. target.Name)
+                    runTo(target, mode) 
+                else 
+                    updateStatus("Exit...")
+                    visitedMobs = {} 
+                    local gate = getBestExit()
+                    if gate then 
+                        runTo({HumanoidRootPart = gate, Name = "Gate"}, "KITE_TO_EXIT") 
+                    else 
+                        updateStatus("Cross...")
+                        local me = tick() + 4
+                        while tick() < me and _G.DungeonMaster do 
+                            char.Humanoid:MoveTo(root.Position + root.CFrame.LookVector * 20)
+                            if root.Velocity.Magnitude < 0.5 then char.Humanoid.Jump = true end
+                            RunService.Heartbeat:Wait() 
+                        end 
+                    end 
+                end 
+            end) 
+        else 
+            updateStatus("PAUSED")
+            task.wait(1) 
+        end 
+    end 
+end)
