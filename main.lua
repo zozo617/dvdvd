@@ -4,14 +4,12 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local HttpService = game:GetService("HttpService") 
 local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 -- ==============================================================================
 -- 0. CONFIGURATION
 -- ==============================================================================
-_G.WebhookURL = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
 _G.DungeonMaster = true 
 _G.AutoStart = true     
 _G.GodMode = true       
@@ -25,66 +23,11 @@ local lastPosition = Vector3.new(0,0,0)
 local currentTargetName = ""
 local targetStartTime = 0
 
--- THE CLICK REMOTE (Replaced with your specific logic)
+-- THE CLICK REMOTE (Pure Remote Attack)
 local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 
 -- ==============================================================================
--- 1. WEBHOOK SYSTEM (BUFFERED)
--- ==============================================================================
-local lootBuffer = {}
-local isSendingWebhook = false
-
-local function sendBufferedWebhook()
-    if _G.WebhookURL == "" or #lootBuffer == 0 then 
-        isSendingWebhook = false
-        return 
-    end
-    
-    local descString = "Items Obtained this run:\n"
-    for _, item in ipairs(lootBuffer) do
-        descString = descString .. "• **" .. tostring(item) .. "**\n"
-    end
-    
-    local data = {
-        ["content"] = " ", 
-        ["embeds"] = {{
-            ["title"] = "💎 Dungeon Loot Summary",
-            ["description"] = descString,
-            ["color"] = 65280, 
-            ["footer"] = {
-                ["text"] = "Sanji's Script | " .. os.date("%X")
-            }
-        }}
-    }
-    
-    local requestFunc = (http and http.request) or http_request or (syn and syn.request) or request or HttpPost
-    if requestFunc then
-        pcall(function()
-            requestFunc({
-                Url = _G.WebhookURL, 
-                Body = HttpService:JSONEncode(data), 
-                Method = "POST", 
-                Headers = {["Content-Type"] = "application/json"}
-            })
-        end)
-    end
-    
-    lootBuffer = {}
-    isSendingWebhook = false
-end
-
-player.Backpack.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") then
-        table.insert(lootBuffer, child.Name)
-        if not isSendingWebhook then
-            isSendingWebhook = true
-            task.delay(6, sendBufferedWebhook)
-        end
-    end
-end)
-
--- ==============================================================================
--- 2. GOD MODE HOOK
+-- 1. GOD MODE HOOK
 -- ==============================================================================
 task.spawn(function()
     pcall(function()
@@ -103,7 +46,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 3. UI SETUP (PURPLE SN LOGO)
+-- 2. UI SETUP (PURPLE SN LOGO)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "SanjiScript"; screenGui.Parent = player.PlayerGui
@@ -115,13 +58,18 @@ local function makeDraggable(guiObject)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 end
 
+-- MAIN FRAME
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
 mainFrame.Visible = false 
 
+-- CUSTOM LOGO HOME BUTTON (Purple SN Logo)
 local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,55,0,55)
-houseBtn.Image = "rbxassetid://138612143003295" -- Your Custom Purple Logo
+houseBtn.Image = "rbxassetid://138612143003295" 
 Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(150, 0, 255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
-houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+
+houseBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
 
 local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255)
 local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.TextSize = 11; statusLabel.Text="Waiting..."
@@ -135,7 +83,7 @@ createButton("AUTO START: ON", 80, Color3.fromRGB(0,140,255), function(b) _G.Aut
 createButton("GOD MODE: ON", 120, Color3.fromRGB(140,0,255), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
 
 -- ==============================================================================
--- 4. UTILITY & COMBAT
+-- 3. UTILITY & COMBAT
 -- ==============================================================================
 local function enforceSpeed(hum) if hum.WalkSpeed < 26 then hum.WalkSpeed = 26 end end
 local function getBestExit()
@@ -144,7 +92,7 @@ local function getBestExit()
     local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
 end
 
--- PURE REMOTE ATTACK (Updated per your request)
+-- PURE REMOTE ATTACK (Mobile Fix)
 local function autoClick() 
     if tick() - lastMB1 > MB1_COOLDOWN then 
         ClickEvent:FireServer(true) 
@@ -175,7 +123,7 @@ local function castSkills(targetModel)
 end
 
 -- ==============================================================================
--- 5. TARGETING (GLACIAL SYNC + TAG & DRAG)
+-- 4. TARGETING (GLACIAL SYNC + TAG & DRAG)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -220,7 +168,7 @@ local function getNextTarget()
 end
 
 -- ==============================================================================
--- 6. NAVIGATION (STAIRS FIX)
+-- 5. NAVIGATION (STAIRS FIX)
 -- ==============================================================================
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char:WaitForChild("HumanoidRootPart"); local hum = char:WaitForChild("Humanoid"); local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
@@ -251,7 +199,7 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 7. LOOPS
+-- 6. LOOPS
 -- ==============================================================================
 task.spawn(function() 
     while true do 
@@ -269,7 +217,7 @@ end)
 
 task.spawn(function() 
     while true do 
-        if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local char = player.Character or player.CharacterAdded:Wait(); local root = char:FindFirstChild("HumanoidRootPart"); local hum = char:FindFirstChild("Humanoid"); if not root or not hum then return end; enforceSpeed(hum); local target, mode = getNextTarget(); if target then runTo(target, mode) else visitedMobs = {}; local gate = getBestExit(); if gate then runTo({HumanoidRootPart = gate, Name = "Gate"}, "KITE_TO_EXIT") else local me = tick() + 4; while tick() < me and _G.DungeonMaster do char.Humanoid:MoveTo(root.Position + root.CFrame.LookVector * 20); if root.Velocity.Magnitude < 0.5 then char.Humanoid.Jump = true end; RunService.Heartbeat:Wait() end end end end) 
-        else task.wait(1) end 
+        if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local char = player.Character or player.CharacterAdded:Wait(); local root = char:FindFirstChild("HumanoidRootPart"); local hum = char:FindFirstChild("Humanoid"); if not root or not hum then return end; enforceSpeed(hum); local target, mode = getNextTarget(); if target then updateStatus("Target: " .. target.Name); runTo(target, mode) else visitedMobs = {}; local gate = getBestExit(); if gate then runTo({HumanoidRootPart = gate, Name = "Gate"}, "KITE_TO_EXIT") else updateStatus("Crossing..."); local me = tick() + 4; while tick() < me and _G.DungeonMaster do char.Humanoid:MoveTo(root.Position + root.CFrame.LookVector * 20); if root.Velocity.Magnitude < 0.5 then char.Humanoid.Jump = true end; RunService.Heartbeat:Wait() end end end end) 
+        else updateStatus("PAUSED"); task.wait(1) end 
     end 
 end)
