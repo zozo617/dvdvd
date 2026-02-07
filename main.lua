@@ -24,10 +24,12 @@ local lastMoveTime = tick()
 local lastPosition = Vector3.new(0,0,0)
 local currentTargetName = ""
 local targetStartTime = 0
-local ClickRemote = ReplicatedStorage:WaitForChild("Click")
+
+-- THE CLICK REMOTE (Replaced with your specific logic)
+local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 
 -- ==============================================================================
--- 1. WEBHOOK SYSTEM (FIXED & BUFFERED)
+-- 1. WEBHOOK SYSTEM (BUFFERED)
 -- ==============================================================================
 local lootBuffer = {}
 local isSendingWebhook = false
@@ -48,7 +50,7 @@ local function sendBufferedWebhook()
         ["embeds"] = {{
             ["title"] = "💎 Dungeon Loot Summary",
             ["description"] = descString,
-            ["color"] = 65280,
+            ["color"] = 65280, 
             ["footer"] = {
                 ["text"] = "Sanji's Script | " .. os.date("%X")
             }
@@ -71,7 +73,7 @@ local function sendBufferedWebhook()
     isSendingWebhook = false
 end
 
-local function onChildAdded(child)
+player.Backpack.ChildAdded:Connect(function(child)
     if child:IsA("Tool") then
         table.insert(lootBuffer, child.Name)
         if not isSendingWebhook then
@@ -79,9 +81,7 @@ local function onChildAdded(child)
             task.delay(6, sendBufferedWebhook)
         end
     end
-end
-
-player.Backpack.ChildAdded:Connect(onChildAdded)
+end)
 
 -- ==============================================================================
 -- 2. GOD MODE HOOK
@@ -103,7 +103,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 3. UI SETUP (CUSTOM LOGO EDITION)
+-- 3. UI SETUP (PURPLE SN LOGO)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiScript") then player.PlayerGui.SanjiScript:Destroy() end
 local screenGui = Instance.new("ScreenGui"); screenGui.Name = "SanjiScript"; screenGui.Parent = player.PlayerGui
@@ -115,22 +115,16 @@ local function makeDraggable(guiObject)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 end
 
--- MAIN FRAME
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
 mainFrame.Visible = false 
 
--- CUSTOM LOGO HOME BUTTON (Purple SN Logo)
 local houseBtn = Instance.new("ImageButton", screenGui); houseBtn.Name="HomeBtn"; houseBtn.BackgroundColor3=Color3.fromRGB(20,20,20); houseBtn.Position=UDim2.new(0.9,0,0.15,0); houseBtn.Size=UDim2.new(0,55,0,55)
-houseBtn.Image = "rbxassetid://138612143003295" -- Applied Custom Purple Logo Image
-houseBtn.ImageColor3 = Color3.fromRGB(255, 255, 255)
+houseBtn.Image = "rbxassetid://138612143003295" -- Your Custom Purple Logo
 Instance.new("UICorner", houseBtn).CornerRadius = UDim.new(0, 12); local houseStroke = Instance.new("UIStroke", houseBtn); houseStroke.Color = Color3.fromRGB(150, 0, 255); houseStroke.Thickness = 1.5; makeDraggable(houseBtn)
-
-houseBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
-end)
+houseBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
 
 local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Script"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255)
-local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.Text="Waiting..."
+local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size=UDim2.new(1,0,0,20); statusLabel.Position=UDim2.new(0,0,1,-20); statusLabel.BackgroundTransparency=1; statusLabel.TextColor3=Color3.fromRGB(150,150,150); statusLabel.TextSize = 11; statusLabel.Text="Waiting..."
 local function updateStatus(msg) statusLabel.Text = msg end
 
 local function createButton(text, pos, color, callback)
@@ -144,29 +138,28 @@ createButton("GOD MODE: ON", 120, Color3.fromRGB(140,0,255), function(b) _G.GodM
 -- 4. UTILITY & COMBAT
 -- ==============================================================================
 local function enforceSpeed(hum) if hum.WalkSpeed < 26 then hum.WalkSpeed = 26 end end
-
 local function getBestExit()
     local char = player.Character; if not char then return nil end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return nil end
     local gates = {}; for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end
     local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
 end
 
--- MOBILE MB1 FIX: Pure Remote Click
+-- PURE REMOTE ATTACK (Updated per your request)
 local function autoClick() 
     if tick() - lastMB1 > MB1_COOLDOWN then 
-        ClickRemote:FireServer(true) 
+        ClickEvent:FireServer(true) 
         lastMB1 = tick() 
     end 
 end
 
 local function castSkills(targetModel)
     autoClick() 
-    local char = player.Character; if not char then return end; local root = char:FindFirstChild("HumanoidRootPart"); if not root then return end
+    local char = player.Character; if not char then return end; local root = char:FindFirstChild("HumanoidRootPart")
     local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
     if (root.Position - enemyRoot.Position).Magnitude > 18 then return end 
     
     local name = targetModel.Name; local useSkills = false
-    if string.find(name, "Colossus") or string.find(name, "Snowman") or string.find(name, "Boss") or string.find(name, "Progenitor") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") or string.find(name, "Wraith") or string.find(name, "Guardian") or string.find(name, "Frostwind") then useSkills = true
+    if string.find(name, "Colossus") or string.find(name, "Snowman") or string.find(name, "Boss") or string.find(name, "Progenitor") or string.find(name, "Possessed") or string.find(name, "Elemental") or string.find(name, "Sorcerer") then useSkills = true
     else
         local bossNearby = false
         for _, v in pairs(Workspace:GetDescendants()) do
@@ -182,7 +175,7 @@ local function castSkills(targetModel)
 end
 
 -- ==============================================================================
--- 5. TARGETING (GLACIAL SYNC FIX)
+-- 5. TARGETING (GLACIAL SYNC + TAG & DRAG)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -199,7 +192,7 @@ local function getNextTarget()
             end
         end
     end
-    local function distSort(a,b) if not a or not b then return false end; return (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude < (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude end
+    local function distSort(a,b) return (char.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude < (char.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude end
     table.sort(progenitors, distSort); table.sort(bosses, distSort); table.sort(glacials, distSort); table.sort(runners, distSort)
 
     if #glacials > 0 then
@@ -213,8 +206,7 @@ local function getNextTarget()
 
     if #runners > 0 then
         local closestRunner = runners[1]; if not visitedMobs[closestRunner] then
-            local runnerDist = (char.HumanoidRootPart.Position - closestRunner.HumanoidRootPart.Position).Magnitude
-            if runnerDist < 40 then
+            if (char.HumanoidRootPart.Position - closestRunner.HumanoidRootPart.Position).Magnitude < 40 then
                 local farBoss = false
                 if #progenitors > 0 and (char.HumanoidRootPart.Position - progenitors[1].HumanoidRootPart.Position).Magnitude > 50 then farBoss = true end
                 if #bosses > 0 and (char.HumanoidRootPart.Position - bosses[1].HumanoidRootPart.Position).Magnitude > 50 then farBoss = true end
