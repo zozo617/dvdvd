@@ -59,7 +59,7 @@ local function makeDraggable(guiObject)
 end
 
 -- MAIN FRAME
-local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,180); makeDraggable(mainFrame)
+local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.7,0,0.25,0); mainFrame.Size=UDim2.new(0,170,0,150); makeDraggable(mainFrame)
 mainFrame.Visible = false 
 
 -- CUSTOM LOGO HOME BUTTON (Purple SN Logo)
@@ -78,6 +78,8 @@ local function updateStatus(msg) statusLabel.Text = msg end
 local function createButton(text, pos, color, callback)
     local btn = Instance.new("TextButton", mainFrame); btn.BackgroundColor3=color; btn.Position=UDim2.new(0.05,0,0,pos); btn.Size=UDim2.new(0.9,0,0,30); btn.Text=text; btn.TextColor3=Color3.new(1,1,1); btn.MouseButton1Click:Connect(function() callback(btn) end)
 end
+
+-- BUTTONS
 createButton("AUTO FARM: ON", 40, Color3.fromRGB(0,180,100), function(b) _G.DungeonMaster = not _G.DungeonMaster; b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60); b.Text = _G.DungeonMaster and "AUTO FARM: ON" or "AUTO FARM: OFF" end)
 createButton("AUTO START: ON", 80, Color3.fromRGB(0,140,255), function(b) _G.AutoStart = not _G.AutoStart; b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80); b.Text = _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF" end)
 createButton("GOD MODE: ON", 120, Color3.fromRGB(140,0,255), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
@@ -92,7 +94,6 @@ local function getBestExit()
     local bestGate, maxDist = nil, -1; for _, gate in ipairs(gates) do local dist = (gate.Position - root.Position).Magnitude; if dist > maxDist then maxDist = dist; bestGate = gate end end; return bestGate
 end
 
--- PURE REMOTE ATTACK (Mobile Fix)
 local function autoClick() 
     if tick() - lastMB1 > MB1_COOLDOWN then 
         ClickEvent:FireServer(true) 
@@ -123,7 +124,7 @@ local function castSkills(targetModel)
 end
 
 -- ==============================================================================
--- 4. TARGETING (GLACIAL SYNC + TAG & DRAG)
+-- 4. TARGETING
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -168,7 +169,7 @@ local function getNextTarget()
 end
 
 -- ==============================================================================
--- 5. NAVIGATION (STAIRS FIX)
+-- 5. NAVIGATION
 -- ==============================================================================
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char:WaitForChild("HumanoidRootPart"); local hum = char:WaitForChild("Humanoid"); local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart"); if not enemyRoot then return end
@@ -187,7 +188,6 @@ local function runTo(targetModel, mode)
         if success and path.Status == Enum.PathStatus.Success then
             for _, wp in ipairs(path:GetWaypoints()) do
                 if not _G.DungeonMaster then break end; enforceSpeed(hum)
-                -- STAIRS FIX: Only jump if waypoint is > 4.5 studs higher
                 if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
                 hum:MoveTo(wp.Position); autoClick()
                 local stuckTimer = 0
@@ -209,7 +209,8 @@ task.spawn(function()
             if c then for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("Humanoid") and v.Parent ~= c and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") and (v.Parent.HumanoidRootPart.Position - c.PrimaryPart.Position).Magnitude < 100 then isFighting = true break end end end
             if not isFighting then
                 pcall(function() ReplicatedStorage:WaitForChild("Start", 1):FireServer() end)
-                local gui = player.PlayerGui; for _, v in pairs(gui:GetDescendants()) do if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then for _, name in ipairs({"Start", "Replay", "Retry", "Play"}) do if string.find(v.Name, name) or (v:IsA("TextButton") and string.find(v.Text, name)) then VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, true, game, 0); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, false, game, 0) end end end end
+                -- Auto-Start button clicker kept for reliability
+                local gui = player.PlayerGui; for _, v in pairs(gui:GetDescendants()) do if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then if string.find(v.Name, "Start") or (v:IsA("TextButton") and string.find(v.Text, "Start")) or string.find(v.Name, "Play") then VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, true, game, 0); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(v.AbsolutePosition.X + v.AbsoluteSize.X/2, v.AbsolutePosition.Y + v.AbsoluteSize.Y/2, 0, false, game, 0) end end end
             end 
         end 
     end 
