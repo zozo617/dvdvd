@@ -14,7 +14,7 @@ _G.DungeonMaster = true  -- DEFAULT: ON
 _G.VoidFarm = false      -- DEFAULT: OFF
 _G.GodMode = true        -- DEFAULT: ON
 _G.AutoStart = true      -- DEFAULT: ON
-_G.AttackRange = 30      
+_G.AttackRange = 30      -- VOID ONLY (Dungeon uses 0)
 
 -- Internal Variables
 local ClickEvent = ReplicatedStorage:FindFirstChild("Click", true) 
@@ -72,12 +72,12 @@ local function makeDraggable(guiObject)
     end)
 end
 
--- MAIN MENU (HIDDEN)
+-- MAIN MENU (HIDDEN START)
 local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = false
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 makeDraggable(mainFrame)
 
--- STATUS BAR (CENTERED)
+-- STATUS BAR (CENTERED INDEPENDENT)
 local statusFrame = Instance.new("Frame", screenGui); statusFrame.Name = "StatusFrame"
 statusFrame.Size = UDim2.new(0, 200, 0, 30)
 statusFrame.AnchorPoint = Vector2.new(0.5, 0)
@@ -132,7 +132,7 @@ local function castSkills(target)
 end
 
 -- ==============================================================================
--- 4. DUNGEON LOGIC (RESTORED OLD SYSTEM + GLACIAL FIX)
+-- 4. DUNGEON LOGIC (NO STUDS + AGGRESSIVE CHASE)
 -- ==============================================================================
 local function getDungeonTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -170,7 +170,7 @@ local function getDungeonTarget()
     end
     if #glacials > 0 then return glacials[1], "KILL_ANCHOR" end
     if #possessed > 0 then table.sort(possessed, function(a, b) return dist(a) < dist(b) end); return possessed[1], "KILL_ANCHOR" end
-    if #colossuses > 0 then return colossuses[1], "KILL_12" end
+    if #colossuses > 0 then return colossuses[1], "KILL" end -- Removed KILL_12 (Stud limit)
     if #trash > 0 then return trash[1], "KILL" end
     return nil, "CLEAR"
 end
@@ -180,86 +180,76 @@ local function runToDungeon(targetModel, mode)
     if not enemyRoot then root.Anchored = false return end
     enforceSpeed(hum); local d = (root.Position - enemyRoot.Position).Magnitude
     
-    -- UNANCHOR IF DEAD CHECK
+    -- SAFETY: INSTANT UNANCHOR IF TARGET DEAD
     if targetModel.Humanoid.Health <= 0 then root.Anchored = false; return end
 
+    -- === GLACIAL MECHANIC (ONLY EXCEPTION) ===
     if mode == "ANCHOR_TO_GLACIAL" then
         local glacial = nil
         for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Glacial Elemental" and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then glacial = v; break end end
         
         if glacial then
             if (root.Position - glacial.HumanoidRootPart.Position).Magnitude < 20 then
-                -- === THE FIXED GLACIAL LOOP ===
                 updateStatus("ANCHORED @ GLACIAL")
-                hum:MoveTo(root.Position) -- Stop Moving
+                hum:MoveTo(root.Position)
                 
                 -- Stay Anchored ONLY while Glacial is Alive
                 while glacial.Parent and glacial.Humanoid.Health > 0 and targetModel.Parent and targetModel.Humanoid.Health > 0 do
                      if not _G.DungeonMaster then break end
                      root.Anchored = true
-                     root.CFrame = CFrame.new(root.Position, glacial.HumanoidRootPart.Position)
+                     root.CFrame = CFrame.new(root.Position, Vector3.new(glacial.HumanoidRootPart.Position.X, root.Position.Y, glacial.HumanoidRootPart.Position.Z))
                      castSkills(targetModel)
                      castSkills(glacial)
                      RunService.Heartbeat:Wait()
                 end
                 
-                -- INSTANT RELEASE
-                root.Anchored = false 
+                root.Anchored = false -- RELEASE
             else
                 root.Anchored = false; hum:MoveTo(glacial.HumanoidRootPart.Position); updateStatus("DRAGGING TO GLACIAL")
             end
             return
         else 
-            mode = "KILL" -- Glacial dead/missing, just kill mob
+            root.Anchored = false
+            mode = "KILL" 
         end
     end
 
-    if mode == "KILL_ANCHOR" then
-        if d < 25 then 
-            root.Anchored = true
-            root.CFrame = CFrame.new(root.Position, enemyRoot.Position)
-            castSkills(targetModel)
-            updateStatus("ANCHORED KILL")
-        else 
-            root.Anchored = false; hum:MoveTo(enemyRoot.Position) 
-        end
+    -- === AGGRESSIVE CHASE (NO STUDS) ===
+    -- Used for ALL mobs (Bosses, Trash, Progenitors, Snowmen)
+    if mode == "KILL" or mode == "KILL_ANCHOR" or mode == "KILL_12" or mode == "AGGRO" then
+        root.Anchored = false
+        updateStatus("CHASING: " .. targetModel.Name)
         
-    elseif mode == "KILL_12" then 
-        if d < 12 then 
-            root.Anchored = true; root.CFrame = CFrame.new(root.Position, enemyRoot.Position); castSkills(targetModel); return
-        elseif d > 14 then 
-            hum:MoveTo(enemyRoot.Position); root.Anchored = false
-        else 
-            hum:MoveTo(root.Position); root.Anchored = true; root.CFrame = CFrame.new(root.Position, enemyRoot.Position); castSkills(targetModel); return 
-        end
+        -- Run straight to enemy (Touch distance)
+        hum:MoveTo(enemyRoot.Position)
         
-    elseif mode == "AGGRO" then
-        root.Anchored = false; updateStatus("AGGRO")
-        if d < 25 then visitedMobs[targetModel] = true; return else hum:MoveTo(enemyRoot.Position) end
-    else
-        -- DEFAULT KILL (Aggressive Chase)
-        root.Anchored = false; updateStatus("KILLING")
-        if d < 20 then 
-            hum:MoveTo(enemyRoot.Position)
-            root.CFrame = CFrame.new(root.Position, enemyRoot.Position)
-            castSkills(targetModel)
-        else
-            local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true}); pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
+        -- Attack while running
+        castSkills(targetModel) 
+        
+        -- Optional: Face enemy while moving
+        -- root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
+
+        -- Use pathfinding ONLY if far away to avoid walls
+        if d > 25 then
+            local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true})
+            pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
             if path.Status == Enum.PathStatus.Success then
                 for _, wp in ipairs(path:GetWaypoints()) do
                     if not _G.DungeonMaster then break end
                     if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
                     hum:MoveTo(wp.Position); autoClick()
                     local stuck = 0; while (root.Position - wp.Position).Magnitude > 4 do RunService.Heartbeat:Wait(); stuck = stuck + 1; if stuck > 60 then hum.Jump = true return end end
+                    
+                    -- Aggro Tagging
                     if mode == "AGGRO" and (root.Position - enemyRoot.Position).Magnitude < 30 then visitedMobs[targetModel] = true; return end
                 end
-            else hum:MoveTo(enemyRoot.Position) end
+            end
         end
     end
 end
 
 -- ==============================================================================
--- 5. VOID SCRIPT LOGIC
+-- 5. VOID SCRIPT LOGIC (KEEPS 30 STUDS)
 -- ==============================================================================
 local function getVoidTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -293,6 +283,7 @@ local function runToVoid(target)
     else stuckTimer = 0 end
     lastPos = root.Position
 
+    -- VOID KEEPS THE STUD LIMIT
     if dist < (_G.AttackRange - 5) then hum:MoveTo(root.Position); return end 
 
     root.Anchored = false
@@ -320,7 +311,7 @@ local function runToVoid(target)
 end
 
 -- ==============================================================================
--- 6. SPLIT-BRAIN COMBAT
+-- 6. SPLIT-BRAIN COMBAT (Void Mode Only)
 -- ==============================================================================
 task.spawn(function()
     while true do
@@ -390,4 +381,4 @@ task.spawn(function()
     end
 end)
 
-print("[Sanji] Unified Hub: Glacial Anchor Fixed")
+print("[Sanji] Unified Hub: Aggressive Dungeon Loaded")
