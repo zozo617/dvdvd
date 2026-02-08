@@ -8,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 -- ==============================================================================
--- 0. CONFIGURATION & STATE (UPDATED DEFAULTS)
+-- 0. CONFIGURATION & STATE
 -- ==============================================================================
 _G.DungeonMaster = true  -- DEFAULT: ON
 _G.VoidFarm = false      -- DEFAULT: OFF
@@ -46,46 +46,103 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (RESTORED BUTTONS)
+-- 2. UI SETUP (DRAGGABLE + SEPARATE STATUS)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
 
-local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.8,0,0.3,0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = true
+-- DRAG FUNCTION
+local function makeDraggable(guiObject)
+    local dragging, dragInput, dragStart, startPos
+    guiObject.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = guiObject.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    guiObject.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            guiObject.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
 
-local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Hub"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255); titleLabel.Font = Enum.Font.GothamBold
+-- MAIN MENU FRAME
+local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = true
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+makeDraggable(mainFrame)
 
-local statusLabel = Instance.new("TextLabel", mainFrame); statusLabel.Size = UDim2.new(1, 0, 0, 20); statusLabel.Position = UDim2.new(0,0,0.9,0); statusLabel.BackgroundTransparency = 1; statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255); statusLabel.TextSize = 10; statusLabel.Font = Enum.Font.Gotham; statusLabel.Text = "Status: Idle"
+-- INDEPENDENT STATUS LABEL (DRAGGABLE)
+-- You can move this specific label anywhere (e.g., below the heart)
+local statusFrame = Instance.new("Frame", screenGui); statusFrame.Name = "StatusFrame"
+statusFrame.Size = UDim2.new(0, 200, 0, 30)
+statusFrame.Position = UDim2.new(0.5, -100, 0.85, 0) -- Default Bottom Center
+statusFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+statusFrame.BackgroundTransparency = 0.5
+Instance.new("UICorner", statusFrame).CornerRadius = UDim.new(0, 6)
+makeDraggable(statusFrame)
+
+local statusLabel = Instance.new("TextLabel", statusFrame); statusLabel.Size = UDim2.new(1, 0, 1, 0); statusLabel.BackgroundTransparency = 1; statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255); statusLabel.TextSize = 14; statusLabel.Font = Enum.Font.GothamBold; statusLabel.Text = "Status: Idle"
 local function updateStatus(msg) statusLabel.Text = msg end
+
+-- HIDE BUTTON
+local hideBtn = Instance.new("TextButton", screenGui); hideBtn.Name = "HideBtn"
+hideBtn.Position = UDim2.new(0.9, -50, 0.15, 0) 
+hideBtn.Size = UDim2.new(0, 45, 0, 45)
+hideBtn.Text = "UI"
+hideBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
+hideBtn.TextColor3 = Color3.new(1,1,1)
+hideBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 8)
+makeDraggable(hideBtn)
+
+hideBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- UI TITLE
+local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Hub"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255); titleLabel.Font = Enum.Font.GothamBold
 
 local function createButton(text, pos, color, callback)
     local btn = Instance.new("TextButton", mainFrame); btn.BackgroundColor3=color; btn.Position=UDim2.new(0.05,0,0,pos); btn.Size=UDim2.new(0.9,0,0,35); btn.Text=text; btn.TextColor3=Color3.new(1,1,1); btn.MouseButton1Click:Connect(function() callback(btn) end)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
     return btn
 end
 
 -- === BUTTONS ===
 
 -- 1. DUNGEON MASTER (Default ON)
-local dungeonBtn = createButton("DUNGEON: ON", 35, Color3.fromRGB(0,180,100), function(b)
+createButton("DUNGEON: ON", 35, Color3.fromRGB(0,180,100), function(b)
     _G.DungeonMaster = not _G.DungeonMaster
     _G.VoidFarm = false 
-    -- If we turn Dungeon ON, we usually want GodMode ON too
     if _G.DungeonMaster then _G.GodMode = true end
-    
     b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60)
     b.Text = _G.DungeonMaster and "DUNGEON: ON" or "DUNGEON: OFF"
-    updateStatus(_G.DungeonMaster and "Mode: Dungeon Master" or "Mode: Idle")
+    updateStatus(_G.DungeonMaster and "Mode: Dungeon" or "Mode: Idle")
 end)
 
 -- 2. VOID FARM (Default OFF)
-local voidBtn = createButton("VOID FARM: OFF", 80, Color3.fromRGB(200,60,60), function(b)
+createButton("VOID FARM: OFF", 80, Color3.fromRGB(200,60,60), function(b)
     _G.VoidFarm = not _G.VoidFarm
     _G.DungeonMaster = false 
-    
     b.BackgroundColor3 = _G.VoidFarm and Color3.fromRGB(140,0,255) or Color3.fromRGB(200,60,60)
     b.Text = _G.VoidFarm and "VOID FARM: ON" or "VOID FARM: OFF"
-    updateStatus(_G.VoidFarm and "Mode: Void Anti-Wall" or "Mode: Idle")
-    
+    updateStatus(_G.VoidFarm and "Mode: Void" or "Mode: Idle")
     if not _G.VoidFarm then blacklist = {}; currentTarget = nil end
 end)
 
@@ -96,7 +153,7 @@ createButton("GOD MODE: ON", 125, Color3.fromRGB(255,170,0), function(b)
     b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF"
 end)
 
--- 4. AUTO START (Default ON - Restored)
+-- 4. AUTO START (Default ON)
 createButton("AUTO START: ON", 170, Color3.fromRGB(0,140,255), function(b)
     _G.AutoStart = not _G.AutoStart
     b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80)
@@ -120,7 +177,7 @@ local function castSkills(target)
 end
 
 -- ==============================================================================
--- 4. MASTER SCRIPT LOGIC (Dungeon)
+-- 4. MASTER SCRIPT LOGIC (Dungeon - NO STUDS LIMIT)
 -- ==============================================================================
 local function getDungeonTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -168,6 +225,7 @@ local function runToDungeon(targetModel, mode)
     if not enemyRoot then root.Anchored = false return end
     enforceSpeed(hum); local d = (root.Position - enemyRoot.Position).Magnitude
     
+    -- Special logic for dragging to Glacial
     if mode == "ANCHOR_TO_GLACIAL" then
         local glacial = nil
         for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Glacial Elemental" and v:FindFirstChild("HumanoidRootPart") then glacial = v; break end end
@@ -183,36 +241,31 @@ local function runToDungeon(targetModel, mode)
         else mode = "KILL" end
     end
 
-    if mode == "KILL_ANCHOR" then
-        if d < 25 then root.Anchored = true; root.CFrame = CFrame.new(root.Position, enemyRoot.Position); castSkills(targetModel); updateStatus("ANCHORED KILL"); return
-        else root.Anchored = false; hum:MoveTo(enemyRoot.Position) end
-    elseif mode == "KILL_12" then 
-        if d < 12 then root.Anchored = true; root.CFrame = CFrame.new(root.Position, enemyRoot.Position); castSkills(targetModel); return
-        elseif d > 14 then hum:MoveTo(enemyRoot.Position); root.Anchored = false
-        else hum:MoveTo(root.Position); root.Anchored = true; root.CFrame = CFrame.new(root.Position, enemyRoot.Position); castSkills(targetModel); return end
-    elseif mode == "AGGRO" then
-        root.Anchored = false; updateStatus("AGGRO")
-        if d < 25 then visitedMobs[targetModel] = true; return else hum:MoveTo(enemyRoot.Position) end
+    -- Normal Kill Logic (Chase relentlessly, no strict 30 stud stop)
+    if d < 20 then
+        -- Close enough to attack
+        hum:MoveTo(enemyRoot.Position)
+        root.CFrame = CFrame.new(root.Position, enemyRoot.Position)
+        castSkills(targetModel)
     else
-        root.Anchored = false; updateStatus("KILLING")
-        if d < 20 then hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, enemyRoot.Position); castSkills(targetModel)
-        else
-            local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true}); pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
-            if path.Status == Enum.PathStatus.Success then
-                for _, wp in ipairs(path:GetWaypoints()) do
-                    if not _G.DungeonMaster then break end
-                    if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
-                    hum:MoveTo(wp.Position); autoClick()
-                    local stuck = 0; while (root.Position - wp.Position).Magnitude > 4 do RunService.Heartbeat:Wait(); stuck = stuck + 1; if stuck > 60 then hum.Jump = true return end end
-                    if mode == "AGGRO" and (root.Position - enemyRoot.Position).Magnitude < 30 then visitedMobs[targetModel] = true; return end
-                end
-            else hum:MoveTo(enemyRoot.Position) end
+        -- Chase
+        hum:MoveTo(enemyRoot.Position)
+        local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true})
+        pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
+        if path.Status == Enum.PathStatus.Success then
+            for _, wp in ipairs(path:GetWaypoints()) do
+                if not _G.DungeonMaster then break end
+                if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
+                hum:MoveTo(wp.Position); autoClick()
+                local stuck = 0; while (root.Position - wp.Position).Magnitude > 4 do RunService.Heartbeat:Wait(); stuck = stuck + 1; if stuck > 60 then hum.Jump = true return end end
+                if mode == "AGGRO" and (root.Position - enemyRoot.Position).Magnitude < 30 then visitedMobs[targetModel] = true; return end
+            end
         end
     end
 end
 
 -- ==============================================================================
--- 5. VOID SCRIPT LOGIC (Strict Anti-Wall)
+-- 5. VOID SCRIPT LOGIC (Strict 30 Studs Anti-Wall)
 -- ==============================================================================
 local function getVoidTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -246,6 +299,7 @@ local function runToVoid(target)
     else stuckTimer = 0 end
     lastPos = root.Position
 
+    -- STRICT STOP
     if dist < (_G.AttackRange - 5) then hum:MoveTo(root.Position); return end 
 
     root.Anchored = false
@@ -273,11 +327,12 @@ local function runToVoid(target)
 end
 
 -- ==============================================================================
--- 6. SPLIT-BRAIN COMBAT (For Void Mode)
+-- 6. SPLIT-BRAIN COMBAT (Shared)
 -- ==============================================================================
 task.spawn(function()
     while true do
         task.wait()
+        -- Void Farm Combat (Strict 30 Range)
         if _G.VoidFarm and currentTarget and currentTarget.Parent and currentTarget:FindFirstChild("HumanoidRootPart") and currentTarget.Humanoid.Health > 0 then
             local char = player.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
@@ -296,8 +351,6 @@ task.spawn(function()
                     end
                 end
             end
-        else
-            task.wait(0.1)
         end
     end
 end)
@@ -305,8 +358,6 @@ end)
 -- ==============================================================================
 -- 7. MAIN EXECUTION LOOPS
 -- ==============================================================================
-
--- Dungeon Auto Start
 task.spawn(function() 
     while true do 
         task.wait(1) 
@@ -317,12 +368,9 @@ task.spawn(function()
     end 
 end)
 
--- Main Logic Router
 task.spawn(function()
     while true do
         RunService.Heartbeat:Wait()
-        
-        -- MODE 1: DUNGEON MASTER
         if _G.DungeonMaster then
             pcall(function()
                 local t, m = getDungeonTarget()
@@ -335,8 +383,6 @@ task.spawn(function()
                     if #gates > 0 then updateStatus("EXITING DUNGEON"); runToDungeon({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("DUNGEON SCANNING...") end
                 end
             end)
-            
-        -- MODE 2: VOID FARM
         elseif _G.VoidFarm then
             local char = player.Character
             if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
@@ -348,4 +394,4 @@ task.spawn(function()
     end
 end)
 
-print("[Sanji] Unified Hub: Final Default Build Loaded")
+print("[Sanji] Unified Hub: Mobile Final Loaded")
