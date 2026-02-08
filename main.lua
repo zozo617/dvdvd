@@ -98,49 +98,55 @@ local function castSkills()
 end
 
 -- ==============================================================================
--- 4. TARGETING (BOSS -> AGGRO SWEEP -> CLOSEST ELITE)
+-- 4. TARGETING (BONECHILL KILL -> FROSTWIND AGGRO -> CLOSEST ELITE)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
     local rootPos = char.HumanoidRootPart.Position
     local elites = {}
     local priorityBoss = nil
-    local unvisitedProgenitors = {}
+    local unvisitedFrostwinds = {}
+    local bonechill = nil
 
     for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
             local mob = v.Parent
             local n = mob.Name
             
-            -- LEVEL 1: FINAL BOSSES
+            -- LEVEL 1: BOSSES
             if string.find(n, "Blizzard") or string.find(n, "Everfrost") or string.find(n, "Arctic Colossus") then
                 priorityBoss = mob
                 break 
             end
 
-            -- LEVEL 2: PROGENITOR SWEEP
-            if string.find(n, "Progenitor") then
-                if not visitedMobs[mob] then table.insert(unvisitedProgenitors, mob) end
+            -- LEVEL 2: BONECHILL PROGENITOR
+            if string.find(n, "Bonechill Progenitor") then
+                bonechill = mob
             end
 
-            -- LEVEL 3: SELECTIVE ELITES (Snowman or Glacial)
+            -- LEVEL 3: FROSTWIND AGGRO SWEEP
+            if string.find(n, "Frostwind Progenitor") then
+                if not visitedMobs[mob] then table.insert(unvisitedFrostwinds, mob) end
+            end
+
+            -- LEVEL 4: SELECTIVE ELITES (Snowman or Glacial)
             if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                 table.insert(elites, mob)
             end
         end
     end
     
-    -- BOSS FIRST
     if priorityBoss then return priorityBoss, "KILL" end
+    if bonechill then return bonechill, "KILL_ANCHOR" end
 
-    -- AGGRO SWEEP
-    if #unvisitedProgenitors > 0 then
+    -- Frostwind Aggro sweep before Glacial
+    if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
-        table.sort(unvisitedProgenitors, function(a, b) return d(a) < d(b) end)
-        return unvisitedProgenitors[1], "AGGRO_COMBO"
+        table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
+        return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
-    -- CLOSEST OF ELITES (Snowman or Glacial)
+    -- Closest elite sorting
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
@@ -161,8 +167,8 @@ local function runTo(targetModel, mode)
     if mode == "AGGRO_COMBO" then
         updateStatus("AGGRO SWEEP: " .. targetModel.Name)
         if d < 25 then visitedMobs[targetModel] = true; return end
-    elseif targetModel.Name == "Glacial Elemental" then
-        updateStatus("ANCHORED @ GLACIAL")
+    elseif targetModel.Name == "Glacial Elemental" or mode == "KILL_ANCHOR" then
+        updateStatus("ANCHORED @ " .. targetModel.Name)
         if d < 20 then
             root.Anchored = true; root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)); castSkills(); return
         end
@@ -198,4 +204,4 @@ end
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
-print("[Script] Sanji's Final Unified Elite Sweep Loaded")
+print("[Script] Sanji's Elite Progenitor Sweep Loaded")
