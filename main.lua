@@ -98,7 +98,7 @@ local function castSkills()
 end
 
 -- ==============================================================================
--- 4. TARGETING (BOSS PRIORITY -> AGGRO SWEEP)
+-- 4. TARGETING (BOSS -> AGGRO SWEEP -> CLOSEST ELITE)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -106,7 +106,6 @@ local function getNextTarget()
     local elites = {}
     local priorityBoss = nil
     local unvisitedProgenitors = {}
-    local glacial = nil
 
     for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
@@ -119,38 +118,35 @@ local function getNextTarget()
                 break 
             end
 
-            -- LEVEL 2: GLACIAL & SNOWMEN
-            if string.find(n, "Glacial Elemental") then glacial = mob end
-            if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
-                table.insert(elites, mob)
-            end
-
-            -- LEVEL 3: PROGENITOR SWEEP
+            -- LEVEL 2: PROGENITOR SWEEP
             if string.find(n, "Progenitor") then
                 if not visitedMobs[mob] then table.insert(unvisitedProgenitors, mob) end
+            end
+
+            -- LEVEL 3: SELECTIVE ELITES (Snowman or Glacial)
+            if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
+                table.insert(elites, mob)
             end
         end
     end
     
-    -- BOSS COMES FIRST
+    -- BOSS FIRST
     if priorityBoss then return priorityBoss, "KILL" end
 
-    -- AGGRO SWEEP: Tag ALL visible progenitors first
+    -- AGGRO SWEEP
     if #unvisitedProgenitors > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedProgenitors, function(a, b) return d(a) < d(b) end)
         return unvisitedProgenitors[1], "AGGRO_COMBO"
     end
 
-    -- GLACIAL ANCHOR: After aggro sweep
-    if glacial then return glacial, "KILL" end
-
-    -- CLOSEST SNOWMAN
+    -- CLOSEST OF ELITES (Snowman or Glacial)
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
         return elites[1], "KILL"
     end
+    
     return nil, "CLEAR"
 end
 
@@ -202,4 +198,4 @@ end
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
-print("[Script] Sanji's Final Boss & Aggro Sweep Loaded")
+print("[Script] Sanji's Final Unified Elite Sweep Loaded")
