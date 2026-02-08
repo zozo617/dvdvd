@@ -11,7 +11,7 @@ local player = Players.LocalPlayer
 -- 0. CONFIGURATION
 -- ==============================================================================
 _G.DungeonMaster = true 
-_G.AutoStart = false        
+_G.AutoStart = true        
 _G.GodMode = true      
 
 -- Internal Variables
