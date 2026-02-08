@@ -39,7 +39,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (MOBILE DRAGGABLE + STEALTH)
+-- 2. UI SETUP (MOBILE DRAGGABLE)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
@@ -98,51 +98,57 @@ local function castSkills()
 end
 
 -- ==============================================================================
--- 4. TARGETING (BOSS PRIORITY -> CLOSEST ELITE)
+-- 4. TARGETING (BOSS PRIORITY -> AGGRO SWEEP)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
     local rootPos = char.HumanoidRootPart.Position
     local elites = {}
     local priorityBoss = nil
+    local unvisitedProgenitors = {}
+    local glacial = nil
 
     for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
             local mob = v.Parent
             local n = mob.Name
             
-            -- LEVEL 1 PRIORITY: BLIZZARD / EVERFROST BOSSES
-            if string.find(n, "Blizzard") or string.find(n, "Everfrost") or string.find(n, "Blizzardwrath") then
+            -- LEVEL 1: FINAL BOSSES
+            if string.find(n, "Blizzard") or string.find(n, "Everfrost") or string.find(n, "Arctic Colossus") then
                 priorityBoss = mob
-                break -- Exit early, kill the boss NOW
+                break 
             end
 
-            -- LEVEL 2 PRIORITY: SELECTIVE ELITES
-            if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") or string.find(n, "Progenitor") then
+            -- LEVEL 2: GLACIAL & SNOWMEN
+            if string.find(n, "Glacial Elemental") then glacial = mob end
+            if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                 table.insert(elites, mob)
+            end
+
+            -- LEVEL 3: PROGENITOR SWEEP
+            if string.find(n, "Progenitor") then
+                if not visitedMobs[mob] then table.insert(unvisitedProgenitors, mob) end
             end
         end
     end
     
-    -- Execute Boss Priority
+    -- BOSS COMES FIRST
     if priorityBoss then return priorityBoss, "KILL" end
 
-    -- Execute Closest Elite sorting
-    local function dist(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
-    table.sort(elites, function(a, b) return dist(a) < dist(b) end)
-
-    local glacial = nil
-    for _, mob in ipairs(elites) do if mob.Name == "Glacial Elemental" then glacial = mob; break end end
-
-    -- AGGRO PROGENITOR COMBO (Only if Glacial is present)
-    for _, mob in ipairs(elites) do
-        if string.find(mob.Name, "Progenitor") and glacial and not visitedMobs[mob] then
-            return mob, "AGGRO_COMBO"
-        end
+    -- AGGRO SWEEP: Tag ALL visible progenitors first
+    if #unvisitedProgenitors > 0 then
+        local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
+        table.sort(unvisitedProgenitors, function(a, b) return d(a) < d(b) end)
+        return unvisitedProgenitors[1], "AGGRO_COMBO"
     end
 
+    -- GLACIAL ANCHOR: After aggro sweep
+    if glacial then return glacial, "KILL" end
+
+    -- CLOSEST SNOWMAN
     if #elites > 0 then
-        -- Returns the closest Snowman or Glacial
+        local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
+        table.sort(elites, function(a, b) return d(a) < d(b) end)
         return elites[1], "KILL"
     end
     return nil, "CLEAR"
@@ -157,7 +163,7 @@ local function runTo(targetModel, mode)
     local d = (root.Position - enemyRoot.Position).Magnitude
 
     if mode == "AGGRO_COMBO" then
-        updateStatus("AGGRO: " .. targetModel.Name)
+        updateStatus("AGGRO SWEEP: " .. targetModel.Name)
         if d < 25 then visitedMobs[targetModel] = true; return end
     elseif targetModel.Name == "Glacial Elemental" then
         updateStatus("ANCHORED @ GLACIAL")
@@ -173,12 +179,7 @@ local function runTo(targetModel, mode)
         hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)); castSkills()
     else
         -- HIGH PRECISION STAIRCASE ROUTING
-        local path = PathfindingService:CreatePath({
-            AgentRadius = 4, 
-            AgentHeight = 6,
-            AgentCanJump = true,
-            WaypointSpacing = 2
-        })
+        local path = PathfindingService:CreatePath({ AgentRadius = 4, AgentHeight = 6, AgentCanJump = true, WaypointSpacing = 2 })
         pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
         if path.Status == Enum.PathStatus.Success then
             for _, wp in ipairs(path:GetWaypoints()) do
@@ -196,9 +197,9 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. MAIN LOOP
+-- 6. MAIN LOOPS
 -- ==============================================================================
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
-print("[Script] Sanji's Closest Selective Aggro Loaded")
+print("[Script] Sanji's Final Boss & Aggro Sweep Loaded")
