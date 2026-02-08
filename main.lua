@@ -46,7 +46,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (DRAGGABLE + SEPARATE STATUS)
+-- 2. UI SETUP (AUTO-HIDE + CENTER STATUS)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
@@ -82,16 +82,16 @@ local function makeDraggable(guiObject)
     end)
 end
 
--- MAIN MENU FRAME
-local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = true
+-- MAIN MENU FRAME (Starts Hidden)
+local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = false -- AUTO CLOSE
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 makeDraggable(mainFrame)
 
--- INDEPENDENT STATUS LABEL (DRAGGABLE)
--- You can move this specific label anywhere (e.g., below the heart)
+-- INDEPENDENT STATUS LABEL (CENTERED)
 local statusFrame = Instance.new("Frame", screenGui); statusFrame.Name = "StatusFrame"
 statusFrame.Size = UDim2.new(0, 200, 0, 30)
-statusFrame.Position = UDim2.new(0.5, -100, 0.85, 0) -- Default Bottom Center
+statusFrame.AnchorPoint = Vector2.new(0.5, 0) -- Center Anchor
+statusFrame.Position = UDim2.new(0.5, 0, 0.75, 0) -- Middle-Bottom (Below Character)
 statusFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 statusFrame.BackgroundTransparency = 0.5
 Instance.new("UICorner", statusFrame).CornerRadius = UDim.new(0, 6)
@@ -100,7 +100,7 @@ makeDraggable(statusFrame)
 local statusLabel = Instance.new("TextLabel", statusFrame); statusLabel.Size = UDim2.new(1, 0, 1, 0); statusLabel.BackgroundTransparency = 1; statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255); statusLabel.TextSize = 14; statusLabel.Font = Enum.Font.GothamBold; statusLabel.Text = "Status: Idle"
 local function updateStatus(msg) statusLabel.Text = msg end
 
--- HIDE BUTTON
+-- HIDE/SHOW BUTTON
 local hideBtn = Instance.new("TextButton", screenGui); hideBtn.Name = "HideBtn"
 hideBtn.Position = UDim2.new(0.9, -50, 0.15, 0) 
 hideBtn.Size = UDim2.new(0, 45, 0, 45)
@@ -177,7 +177,7 @@ local function castSkills(target)
 end
 
 -- ==============================================================================
--- 4. MASTER SCRIPT LOGIC (Dungeon - NO STUDS LIMIT)
+-- 4. MASTER SCRIPT LOGIC (Dungeon)
 -- ==============================================================================
 local function getDungeonTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -225,7 +225,6 @@ local function runToDungeon(targetModel, mode)
     if not enemyRoot then root.Anchored = false return end
     enforceSpeed(hum); local d = (root.Position - enemyRoot.Position).Magnitude
     
-    -- Special logic for dragging to Glacial
     if mode == "ANCHOR_TO_GLACIAL" then
         local glacial = nil
         for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Glacial Elemental" and v:FindFirstChild("HumanoidRootPart") then glacial = v; break end end
@@ -241,14 +240,11 @@ local function runToDungeon(targetModel, mode)
         else mode = "KILL" end
     end
 
-    -- Normal Kill Logic (Chase relentlessly, no strict 30 stud stop)
     if d < 20 then
-        -- Close enough to attack
         hum:MoveTo(enemyRoot.Position)
         root.CFrame = CFrame.new(root.Position, enemyRoot.Position)
         castSkills(targetModel)
     else
-        -- Chase
         hum:MoveTo(enemyRoot.Position)
         local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true})
         pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
@@ -394,4 +390,4 @@ task.spawn(function()
     end
 end)
 
-print("[Sanji] Unified Hub: Mobile Final Loaded")
+print("[Sanji] Unified Hub: Mobile Stealth Loaded")
