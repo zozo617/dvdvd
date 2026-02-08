@@ -46,12 +46,11 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (AUTO-HIDE + CENTER STATUS)
+-- 2. UI SETUP (MOBILE STEALTH)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
 
--- DRAG FUNCTION
 local function makeDraggable(guiObject)
     local dragging, dragInput, dragStart, startPos
     guiObject.InputBegan:Connect(function(input)
@@ -59,21 +58,12 @@ local function makeDraggable(guiObject)
             dragging = true
             dragStart = input.Position
             startPos = guiObject.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
         end
     end)
-    
     guiObject.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
     end)
-    
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
@@ -82,16 +72,16 @@ local function makeDraggable(guiObject)
     end)
 end
 
--- MAIN MENU FRAME (Starts Hidden)
-local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = false -- AUTO CLOSE
+-- MAIN MENU (HIDDEN)
+local mainFrame = Instance.new("Frame", screenGui); mainFrame.Name="MainFrame"; mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = false
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 makeDraggable(mainFrame)
 
--- INDEPENDENT STATUS LABEL (CENTERED)
+-- STATUS BAR (CENTERED)
 local statusFrame = Instance.new("Frame", screenGui); statusFrame.Name = "StatusFrame"
 statusFrame.Size = UDim2.new(0, 200, 0, 30)
-statusFrame.AnchorPoint = Vector2.new(0.5, 0) -- Center Anchor
-statusFrame.Position = UDim2.new(0.5, 0, 0.75, 0) -- Middle-Bottom (Below Character)
+statusFrame.AnchorPoint = Vector2.new(0.5, 0)
+statusFrame.Position = UDim2.new(0.5, 0, 0.75, 0)
 statusFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 statusFrame.BackgroundTransparency = 0.5
 Instance.new("UICorner", statusFrame).CornerRadius = UDim.new(0, 6)
@@ -100,7 +90,7 @@ makeDraggable(statusFrame)
 local statusLabel = Instance.new("TextLabel", statusFrame); statusLabel.Size = UDim2.new(1, 0, 1, 0); statusLabel.BackgroundTransparency = 1; statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255); statusLabel.TextSize = 14; statusLabel.Font = Enum.Font.GothamBold; statusLabel.Text = "Status: Idle"
 local function updateStatus(msg) statusLabel.Text = msg end
 
--- HIDE/SHOW BUTTON
+-- HIDE BTN
 local hideBtn = Instance.new("TextButton", screenGui); hideBtn.Name = "HideBtn"
 hideBtn.Position = UDim2.new(0.9, -50, 0.15, 0) 
 hideBtn.Size = UDim2.new(0, 45, 0, 45)
@@ -110,12 +100,8 @@ hideBtn.TextColor3 = Color3.new(1,1,1)
 hideBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0, 8)
 makeDraggable(hideBtn)
+hideBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
 
-hideBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
-end)
-
--- UI TITLE
 local titleLabel = Instance.new("TextLabel", mainFrame); titleLabel.Size=UDim2.new(1,0,0,30); titleLabel.BackgroundTransparency=1; titleLabel.Text="Sanji's Hub"; titleLabel.TextColor3=Color3.fromRGB(150, 0, 255); titleLabel.Font = Enum.Font.GothamBold
 
 local function createButton(text, pos, color, callback)
@@ -124,44 +110,13 @@ local function createButton(text, pos, color, callback)
     return btn
 end
 
--- === BUTTONS ===
-
--- 1. DUNGEON MASTER (Default ON)
-createButton("DUNGEON: ON", 35, Color3.fromRGB(0,180,100), function(b)
-    _G.DungeonMaster = not _G.DungeonMaster
-    _G.VoidFarm = false 
-    if _G.DungeonMaster then _G.GodMode = true end
-    b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60)
-    b.Text = _G.DungeonMaster and "DUNGEON: ON" or "DUNGEON: OFF"
-    updateStatus(_G.DungeonMaster and "Mode: Dungeon" or "Mode: Idle")
-end)
-
--- 2. VOID FARM (Default OFF)
-createButton("VOID FARM: OFF", 80, Color3.fromRGB(200,60,60), function(b)
-    _G.VoidFarm = not _G.VoidFarm
-    _G.DungeonMaster = false 
-    b.BackgroundColor3 = _G.VoidFarm and Color3.fromRGB(140,0,255) or Color3.fromRGB(200,60,60)
-    b.Text = _G.VoidFarm and "VOID FARM: ON" or "VOID FARM: OFF"
-    updateStatus(_G.VoidFarm and "Mode: Void" or "Mode: Idle")
-    if not _G.VoidFarm then blacklist = {}; currentTarget = nil end
-end)
-
--- 3. GOD MODE (Default ON)
-createButton("GOD MODE: ON", 125, Color3.fromRGB(255,170,0), function(b)
-    _G.GodMode = not _G.GodMode
-    b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(255,170,0) or Color3.fromRGB(80,80,80)
-    b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF"
-end)
-
--- 4. AUTO START (Default ON)
-createButton("AUTO START: ON", 170, Color3.fromRGB(0,140,255), function(b)
-    _G.AutoStart = not _G.AutoStart
-    b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80)
-    b.Text = _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF"
-end)
+createButton("DUNGEON: ON", 35, Color3.fromRGB(0,180,100), function(b) _G.DungeonMaster = not _G.DungeonMaster; _G.VoidFarm = false; if _G.DungeonMaster then _G.GodMode = true end; b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60); b.Text = _G.DungeonMaster and "DUNGEON: ON" or "DUNGEON: OFF"; updateStatus(_G.DungeonMaster and "Mode: Dungeon" or "Mode: Idle") end)
+createButton("VOID FARM: OFF", 80, Color3.fromRGB(200,60,60), function(b) _G.VoidFarm = not _G.VoidFarm; _G.DungeonMaster = false; b.BackgroundColor3 = _G.VoidFarm and Color3.fromRGB(140,0,255) or Color3.fromRGB(200,60,60); b.Text = _G.VoidFarm and "VOID FARM: ON" or "VOID FARM: OFF"; updateStatus(_G.VoidFarm and "Mode: Void" or "Mode: Idle"); if not _G.VoidFarm then blacklist = {}; currentTarget = nil end end)
+createButton("GOD MODE: ON", 125, Color3.fromRGB(255,170,0), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(255,170,0) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
+createButton("AUTO START: ON", 170, Color3.fromRGB(0,140,255), function(b) _G.AutoStart = not _G.AutoStart; b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80); b.Text = _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF" end)
 
 -- ==============================================================================
--- 3. SHARED UTILITIES
+-- 3. UTILITIES & GRAVITY FIX
 -- ==============================================================================
 local function enforceSpeed(hum) if hum.WalkSpeed < 26 then hum.WalkSpeed = 26 end end
 local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then if ClickEvent then ClickEvent:FireServer(true) end lastMB1 = tick() end end
@@ -176,8 +131,24 @@ local function castSkills(target)
     end
 end
 
+-- NEW: FLOOR SNAPPER
+-- Raycasts down to find the floor so we don't anchor in the air
+local function snapToFloor(currentPos)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {player.Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+    -- Cast down 100 studs
+    local result = workspace:Raycast(currentPos + Vector3.new(0, 5, 0), Vector3.new(0, -100, 0), rayParams)
+    
+    if result then
+        -- Return Floor Position + 3 Studs (Hip Height)
+        return Vector3.new(currentPos.X, result.Position.Y + 3.5, currentPos.Z)
+    end
+    return currentPos -- Fallback if void
+end
+
 -- ==============================================================================
--- 4. MASTER SCRIPT LOGIC (Dungeon)
+-- 4. DUNGEON LOGIC (UPDATED WITH GRAVITY FIX)
 -- ==============================================================================
 local function getDungeonTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -230,7 +201,11 @@ local function runToDungeon(targetModel, mode)
         for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Glacial Elemental" and v:FindFirstChild("HumanoidRootPart") then glacial = v; break end end
         if glacial then
             if (root.Position - glacial.HumanoidRootPart.Position).Magnitude < 20 then
-                root.Anchored = true; root.CFrame = CFrame.new(root.Position, glacial.HumanoidRootPart.Position) 
+                -- FIX: Snap to Floor + Horizontal Look Only
+                local groundPos = snapToFloor(root.Position)
+                root.Anchored = true
+                root.CFrame = CFrame.new(groundPos, Vector3.new(glacial.HumanoidRootPart.Position.X, groundPos.Y, glacial.HumanoidRootPart.Position.Z))
+                
                 castSkills(targetModel); task.spawn(function() castSkills(glacial) end)
                 updateStatus("ANCHORED @ GLACIAL")
             else
@@ -240,22 +215,44 @@ local function runToDungeon(targetModel, mode)
         else mode = "KILL" end
     end
 
-    if d < 20 then
-        hum:MoveTo(enemyRoot.Position)
-        root.CFrame = CFrame.new(root.Position, enemyRoot.Position)
-        castSkills(targetModel)
+    if mode == "KILL_ANCHOR" then
+        if d < 25 then 
+            -- FIX: Snap to Floor + Horizontal Look Only
+            local groundPos = snapToFloor(root.Position)
+            root.Anchored = true
+            root.CFrame = CFrame.new(groundPos, Vector3.new(enemyRoot.Position.X, groundPos.Y, enemyRoot.Position.Z))
+            
+            castSkills(targetModel); updateStatus("ANCHORED KILL")
+            return
+        else root.Anchored = false; hum:MoveTo(enemyRoot.Position) end
+        
+    elseif mode == "KILL_12" then 
+        if d < 12 then 
+            local groundPos = snapToFloor(root.Position)
+            root.Anchored = true; root.CFrame = CFrame.new(groundPos, Vector3.new(enemyRoot.Position.X, groundPos.Y, enemyRoot.Position.Z)); castSkills(targetModel); return
+        elseif d > 14 then hum:MoveTo(enemyRoot.Position); root.Anchored = false
+        else 
+            local groundPos = snapToFloor(root.Position)
+            hum:MoveTo(root.Position); root.Anchored = true; root.CFrame = CFrame.new(groundPos, Vector3.new(enemyRoot.Position.X, groundPos.Y, enemyRoot.Position.Z)); castSkills(targetModel); return 
+        end
+        
+    elseif mode == "AGGRO" then
+        root.Anchored = false; updateStatus("AGGRO")
+        if d < 25 then visitedMobs[targetModel] = true; return else hum:MoveTo(enemyRoot.Position) end
     else
-        hum:MoveTo(enemyRoot.Position)
-        local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true})
-        pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
-        if path.Status == Enum.PathStatus.Success then
-            for _, wp in ipairs(path:GetWaypoints()) do
-                if not _G.DungeonMaster then break end
-                if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
-                hum:MoveTo(wp.Position); autoClick()
-                local stuck = 0; while (root.Position - wp.Position).Magnitude > 4 do RunService.Heartbeat:Wait(); stuck = stuck + 1; if stuck > 60 then hum.Jump = true return end end
-                if mode == "AGGRO" and (root.Position - enemyRoot.Position).Magnitude < 30 then visitedMobs[targetModel] = true; return end
-            end
+        root.Anchored = false; updateStatus("KILLING")
+        if d < 20 then hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)); castSkills(targetModel)
+        else
+            local path = PathfindingService:CreatePath({AgentRadius = 3, AgentCanJump = true}); pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
+            if path.Status == Enum.PathStatus.Success then
+                for _, wp in ipairs(path:GetWaypoints()) do
+                    if not _G.DungeonMaster then break end
+                    if wp.Position.Y > root.Position.Y + 4.5 then hum.Jump = true end
+                    hum:MoveTo(wp.Position); autoClick()
+                    local stuck = 0; while (root.Position - wp.Position).Magnitude > 4 do RunService.Heartbeat:Wait(); stuck = stuck + 1; if stuck > 60 then hum.Jump = true return end end
+                    if mode == "AGGRO" and (root.Position - enemyRoot.Position).Magnitude < 30 then visitedMobs[targetModel] = true; return end
+                end
+            else hum:MoveTo(enemyRoot.Position) end
         end
     end
 end
@@ -323,12 +320,11 @@ local function runToVoid(target)
 end
 
 -- ==============================================================================
--- 6. SPLIT-BRAIN COMBAT (Shared)
+-- 6. SPLIT-BRAIN COMBAT (Void Mode Only)
 -- ==============================================================================
 task.spawn(function()
     while true do
         task.wait()
-        -- Void Farm Combat (Strict 30 Range)
         if _G.VoidFarm and currentTarget and currentTarget.Parent and currentTarget:FindFirstChild("HumanoidRootPart") and currentTarget.Humanoid.Health > 0 then
             local char = player.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
@@ -352,7 +348,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 7. MAIN EXECUTION LOOPS
+-- 7. LOOPS
 -- ==============================================================================
 task.spawn(function() 
     while true do 
@@ -370,8 +366,7 @@ task.spawn(function()
         if _G.DungeonMaster then
             pcall(function()
                 local t, m = getDungeonTarget()
-                if t then 
-                    runToDungeon(t, m) 
+                if t then runToDungeon(t, m) 
                 else 
                     visitedMobs = {}
                     local gates = {}
@@ -390,4 +385,4 @@ task.spawn(function()
     end
 end)
 
-print("[Sanji] Unified Hub: Mobile Stealth Loaded")
+print("[Sanji] Unified Hub: Gravity Fix + Mobile UI Loaded")
