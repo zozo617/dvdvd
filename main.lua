@@ -18,9 +18,21 @@ _G.GodMode = true        -- DEFAULT ON
 -- [WEBHOOK SETTINGS]
 local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
 
--- [GLOBAL RUN TRACKER]
-if not getgenv().SanjiTotalRuns then getgenv().SanjiTotalRuns = 0 end
-getgenv().SanjiTotalRuns = getgenv().SanjiTotalRuns + 1 -- Adds 1 run every time script executes
+-- [PERSISTENT RUN TRACKER]
+-- This saves the run count to a file so it doesn't reset on server hop
+local RunFileName = "SanjiRuns.txt"
+local totalRuns = 0
+
+local success, err = pcall(function()
+    if isfile and isfile(RunFileName) then
+        totalRuns = tonumber(readfile(RunFileName)) or 0
+    end
+    totalRuns = totalRuns + 1
+    if writefile then
+        writefile(RunFileName, tostring(totalRuns))
+    end
+end)
+if not success then warn("Failed to save runs: " .. tostring(err)) end
 
 local visitedMobs = {} 
 local lastMB1 = 0              
@@ -277,8 +289,8 @@ local function sendInventoryUpdate()
         local maxItems = Inventory.MaxItems.Value
         local storageInfo = string.format("Inventory Space: %d/%d", currentItems, maxItems)
         
-        -- TOTAL RUNS DISPLAY (Tracks executions)
-        local runsTotal = string.format("Total Runs: %d", getgenv().SanjiTotalRuns)
+        -- TOTAL RUNS DISPLAY (PERSISTENT)
+        local runsTotal = string.format("Total Runs: %d", totalRuns)
 
         local finalMessage = "=== PLAYER STATS ===\n" .. levelInfo .. "\n" .. storageInfo .. "\n" .. runsTotal .. "\n===================="
 
@@ -305,4 +317,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Final Master Hub Loaded")
+print("[Script] Sanji's Master Hub (Runs Saver Fix) Loaded")
