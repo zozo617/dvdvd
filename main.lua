@@ -122,7 +122,7 @@ local function checkWallAndJump()
 end
 
 -- ==============================================================================
--- 4. TARGETING (CLOSEST ELITE LOGIC + BOSS PRIO)
+-- 4. TARGETING
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -137,21 +137,21 @@ local function getNextTarget()
             local mob = v.Parent
             local n = mob.Name
             
-            -- LEVEL 1: BOSSES
+            -- LEVEL 1: BOSSES (Highest Priority)
             if string.find(n, "Blizzard") or string.find(n, "Everfrost") or string.find(n, "Arctic Colossus") then
                 priorityBoss = mob
                 break 
             end
 
-            -- LEVEL 2: BONECHILL
+            -- LEVEL 2: BONECHILL PROGENITOR (Kill Anchor)
             if string.find(n, "Bonechill Progenitor") then bonechill = mob end
 
-            -- LEVEL 3: FROSTWIND SWEEP
+            -- LEVEL 3: FROSTWIND PROGENITOR (Aggro Sweep)
             if string.find(n, "Frostwind Progenitor") then
                 if not visitedMobs[mob] then table.insert(unvisitedFrostwinds, mob) end
             end
 
-            -- LEVEL 4: SNOWMAN OR GLACIAL
+            -- LEVEL 4: SNOWMAN OR GLACIAL (Closest Duel)
             if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                 table.insert(elites, mob)
             end
@@ -161,14 +161,14 @@ local function getNextTarget()
     if priorityBoss then return priorityBoss, "KILL" end
     if bonechill then return bonechill, "KILL_ANCHOR" end
     
-    -- Sweep Frostwinds first
+    -- Sweep Frostwinds first (SORTED BY DISTANCE)
     if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
         return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
-    -- === CLOSEST ELITE (SNOWMAN OR GLACIAL) ===
+    -- === CLOSEST ELITE LOGIC (SNOWMAN VS GLACIAL) ===
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
@@ -179,7 +179,7 @@ local function getNextTarget()
 end
 
 -- ==============================================================================
--- 5. NAVIGATION
+-- 5. NAVIGATION (INCLUDES ARCTIC COLOSSUS 30 STUD LOGIC)
 -- ==============================================================================
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char.HumanoidRootPart; local hum = char.Humanoid; local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart")
@@ -193,6 +193,17 @@ local function runTo(targetModel, mode)
     else stuckCount = 0 end
     lastPos = root.Position
     checkWallAndJump()
+
+    -- === SPECIFIC ARCTIC COLOSSUS LOGIC (30 STUDS) ===
+    if targetModel.Name == "Arctic Colossus" then
+        updateStatus("BOSS: Arctic Colossus (30 Studs)")
+        if d < 30 then
+            root.Anchored = true
+            root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
+            castSkills()
+            return -- Stop here, do not run default movement
+        end
+    end
 
     if mode == "AGGRO_COMBO" then
         updateStatus("AGGRO SWEEP: " .. targetModel.Name)
@@ -273,4 +284,4 @@ task.spawn(function()
     end
 end)
 
-print("[Script] Sanji's Unified Master Hub + Webhook Loaded")
+print("[Script] Sanji's Unified Master Hub (Arctic 30-Stud) Loaded")
