@@ -121,6 +121,19 @@ local function checkWallAndJump()
     if legRay and not headRay then char.Humanoid.Jump = true end
 end
 
+-- HELPER: Abbreviate Numbers (2000 -> 2k, 2500000 -> 2.5m)
+local function abbreviateNumber(n)
+    if n >= 1000000 then
+        local val = n / 1000000
+        return string.format("%.2fm", val):gsub("%.00m", "m"):gsub("%.(%d)0m", ".%1m")
+    elseif n >= 1000 then
+        local val = n / 1000
+        return string.format("%.2fk", val):gsub("%.00k", "k"):gsub("%.(%d)0k", ".%1k")
+    else
+        return tostring(n)
+    end
+end
+
 -- ==============================================================================
 -- 4. TARGETING
 -- ==============================================================================
@@ -239,17 +252,20 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. WEBHOOK FUNCTIONALITY (ONCE ON EXECUTE)
+-- 6. WEBHOOK FUNCTIONALITY (ONCE ON EXECUTE + ABBREVIATION)
 -- ==============================================================================
 local function sendInventoryUpdate()
     local success, err = pcall(function()
         local Inventory = workspace.Inventories:FindFirstChild(player.Name)
         if not Inventory then return end
         
-        local levelInfo = string.format("Level: %d\nXP: %d/%d", 
+        local currentXP = abbreviateNumber(Inventory.Experience.Value)
+        local neededXP = abbreviateNumber(Inventory.ExperienceNeeded.Value)
+
+        local levelInfo = string.format("Level: %d\nXP: %s/%s", 
             Inventory.Level.Value, 
-            Inventory.Experience.Value, 
-            Inventory.ExperienceNeeded.Value)
+            currentXP, 
+            neededXP)
 
         local currentItems = #Inventory.Items:GetChildren()
         local maxItems = Inventory.MaxItems.Value
@@ -280,4 +296,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Unified Master Hub (Single Webhook) Loaded")
+print("[Script] Sanji's Master Hub (Instant Abbreviated Webhook) Loaded")
