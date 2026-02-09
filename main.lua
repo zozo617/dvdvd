@@ -239,7 +239,7 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. WEBHOOK FUNCTIONALITY
+-- 6. WEBHOOK FUNCTIONALITY (ONCE ON EXECUTE)
 -- ==============================================================================
 local function sendInventoryUpdate()
     local success, err = pcall(function()
@@ -274,14 +274,10 @@ end
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
--- Webhook Loop (Every 5 mins)
+-- Webhook Execute (Once)
 task.spawn(function()
     task.wait(5)
     sendInventoryUpdate()
-    while true do
-        task.wait(300)
-        sendInventoryUpdate()
-    end
 end)
 
-print("[Script] Sanji's Unified Master Hub (Arctic 30-Stud) Loaded")
+print("[Script] Sanji's Unified Master Hub (Single Webhook) Loaded")
