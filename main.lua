@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
 -- ==============================================================================
@@ -13,6 +14,7 @@ local player = Players.LocalPlayer
 _G.DungeonMaster = true  -- DEFAULT ON
 _G.AutoStart = true      -- DEFAULT ON
 _G.GodMode = true        -- DEFAULT ON
+local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
 
 local visitedMobs = {} 
 local lastMB1 = 0              
@@ -21,6 +23,12 @@ local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 local hasStarted = false
 local lastPos = Vector3.new(0,0,0) 
 local stuckCount = 0
+
+-- Wait for inventory to load (for webhook)
+task.spawn(function()
+    repeat task.wait() until workspace:FindFirstChild("Inventories")
+    repeat task.wait() until workspace.Inventories:FindFirstChild(player.Name)
+end)
 
 -- ==============================================================================
 -- 1. GOD MODE HOOK
@@ -41,7 +49,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP
+-- 2. UI SETUP (MOBILE DRAGGABLE)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
@@ -114,7 +122,7 @@ local function checkWallAndJump()
 end
 
 -- ==============================================================================
--- 4. TARGETING (PRESERVED "CLOSEST ELITE" LOGIC)
+-- 4. TARGETING (CLOSEST ELITE LOGIC + BOSS PRIO)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -153,15 +161,14 @@ local function getNextTarget()
     if priorityBoss then return priorityBoss, "KILL" end
     if bonechill then return bonechill, "KILL_ANCHOR" end
     
-    -- Sweep Frostwinds first to group them
+    -- Sweep Frostwinds first
     if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
         return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
-    -- === THE LOGIC YOU ASKED TO KEEP ===
-    -- WHOEVER IS CLOSER: SNOWMAN OR GLACIAL
+    -- === CLOSEST ELITE (SNOWMAN OR GLACIAL) ===
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
@@ -221,9 +228,49 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. MAIN LOOPS
+-- 6. WEBHOOK FUNCTIONALITY
+-- ==============================================================================
+local function sendInventoryUpdate()
+    local success, err = pcall(function()
+        local Inventory = workspace.Inventories:FindFirstChild(player.Name)
+        if not Inventory then return end
+        
+        local levelInfo = string.format("Level: %d\nXP: %d/%d", 
+            Inventory.Level.Value, 
+            Inventory.Experience.Value, 
+            Inventory.ExperienceNeeded.Value)
+
+        local currentItems = #Inventory.Items:GetChildren()
+        local maxItems = Inventory.MaxItems.Value
+        local storageInfo = string.format("Inventory Space: %d/%d", currentItems, maxItems)
+
+        local finalMessage = "=== PLAYER STATS ===\n" .. levelInfo .. "\n" .. storageInfo .. "\n===================="
+
+        local data = {["content"] = finalMessage}
+
+        request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+end
+
+-- ==============================================================================
+-- 7. MAIN LOOPS
 -- ==============================================================================
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
-print("[Script] Sanji's Final Master Hub Loaded")
+-- Webhook Loop (Every 5 mins)
+task.spawn(function()
+    task.wait(5)
+    sendInventoryUpdate()
+    while true do
+        task.wait(300)
+        sendInventoryUpdate()
+    end
+end)
+
+print("[Script] Sanji's Unified Master Hub + Webhook Loaded")
