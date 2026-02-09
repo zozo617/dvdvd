@@ -19,6 +19,8 @@ local lastMB1 = 0
 local MB1_COOLDOWN = 0.1 
 local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 local hasStarted = false
+local lastPos = Vector3.new(0,0,0) 
+local stuckCount = 0
 
 -- ==============================================================================
 -- 1. GOD MODE HOOK
@@ -39,7 +41,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (MOBILE DRAGGABLE)
+-- 2. UI SETUP
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
@@ -86,7 +88,7 @@ createButton("AUTO START: ON", 80, Color3.fromRGB(0,140,255), function(b) _G.Aut
 createButton("GOD MODE: ON", 125, Color3.fromRGB(140,0,255), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
 
 -- ==============================================================================
--- 3. COMBAT UTILITY
+-- 3. COMBAT & NAVIGATION UTILITY
 -- ==============================================================================
 local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then ClickEvent:FireServer(true); lastMB1 = tick() end end
 local function castSkills()
@@ -97,8 +99,22 @@ local function castSkills()
     end
 end
 
+-- WALL JUMP (For Stairs)
+local function checkWallAndJump()
+    local char = player.Character; if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local params = RaycastParams.new(); params.FilterDescendantsInstances = {char}
+    local forward = root.CFrame.LookVector
+    local legRay = workspace:Raycast(root.Position - Vector3.new(0, 2, 0), forward * 3, params)
+    local headRay = workspace:Raycast(root.Position + Vector3.new(0, 1, 0), forward * 3, params)
+
+    if legRay and not headRay then char.Humanoid.Jump = true end
+end
+
 -- ==============================================================================
--- 4. TARGETING (BONECHILL KILL -> FROSTWIND AGGRO -> CLOSEST ELITE)
+-- 4. TARGETING (PRESERVED "CLOSEST ELITE" LOGIC)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -119,17 +135,15 @@ local function getNextTarget()
                 break 
             end
 
-            -- LEVEL 2: BONECHILL PROGENITOR
-            if string.find(n, "Bonechill Progenitor") then
-                bonechill = mob
-            end
+            -- LEVEL 2: BONECHILL
+            if string.find(n, "Bonechill Progenitor") then bonechill = mob end
 
-            -- LEVEL 3: FROSTWIND AGGRO SWEEP
+            -- LEVEL 3: FROSTWIND SWEEP
             if string.find(n, "Frostwind Progenitor") then
                 if not visitedMobs[mob] then table.insert(unvisitedFrostwinds, mob) end
             end
 
-            -- LEVEL 4: SELECTIVE ELITES (Snowman or Glacial)
+            -- LEVEL 4: SNOWMAN OR GLACIAL
             if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                 table.insert(elites, mob)
             end
@@ -138,15 +152,16 @@ local function getNextTarget()
     
     if priorityBoss then return priorityBoss, "KILL" end
     if bonechill then return bonechill, "KILL_ANCHOR" end
-
-    -- Frostwind Aggro sweep before Glacial
+    
+    -- Sweep Frostwinds first to group them
     if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
         return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
-    -- Closest elite sorting
+    -- === THE LOGIC YOU ASKED TO KEEP ===
+    -- WHOEVER IS CLOSER: SNOWMAN OR GLACIAL
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
@@ -157,12 +172,20 @@ local function getNextTarget()
 end
 
 -- ==============================================================================
--- 5. ROUTE NAVIGATION
+-- 5. NAVIGATION
 -- ==============================================================================
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char.HumanoidRootPart; local hum = char.Humanoid; local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart")
     if not enemyRoot then return end
     local d = (root.Position - enemyRoot.Position).Magnitude
+
+    -- STUCK CHECK
+    if (root.Position - lastPos).Magnitude < 0.5 then
+        stuckCount = stuckCount + 1
+        if stuckCount > 20 then hum.Jump = true; stuckCount = 0 end 
+    else stuckCount = 0 end
+    lastPos = root.Position
+    checkWallAndJump()
 
     if mode == "AGGRO_COMBO" then
         updateStatus("AGGRO SWEEP: " .. targetModel.Name)
@@ -180,17 +203,16 @@ local function runTo(targetModel, mode)
     if d < 12 then 
         hum:MoveTo(enemyRoot.Position); root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z)); castSkills()
     else
-        -- HIGH PRECISION STAIRCASE ROUTING
-        local path = PathfindingService:CreatePath({ AgentRadius = 4, AgentHeight = 6, AgentCanJump = true, WaypointSpacing = 2 })
+        local path = PathfindingService:CreatePath({ AgentRadius = 3, AgentHeight = 6, AgentCanJump = true, AgentMaxSlope = 60, WaypointSpacing = 3 })
         pcall(function() path:ComputeAsync(root.Position, enemyRoot.Position) end)
         if path.Status == Enum.PathStatus.Success then
             for _, wp in ipairs(path:GetWaypoints()) do
                 if not _G.DungeonMaster then break end
                 if wp.Position.Y > root.Position.Y + 1.5 then hum.Jump = true end
-                hum:MoveTo(wp.Position); autoClick()
+                hum:MoveTo(wp.Position); autoClick(); checkWallAndJump()
                 local t = 0; while (root.Position - wp.Position).Magnitude > 4 do 
                     RunService.Heartbeat:Wait(); t = t + 1; 
-                    if t > 40 or root.Velocity.Magnitude < 2 then hum.Jump = true; break end 
+                    if t > 30 then hum.Jump = true; break end 
                 end
                 if mode == "AGGRO_COMBO" and (root.Position - enemyRoot.Position).Magnitude < 25 then visitedMobs[targetModel] = true; return end
             end
@@ -204,4 +226,4 @@ end
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
-print("[Script] Sanji's Elite Progenitor Sweep Loaded")
+print("[Script] Sanji's Final Master Hub Loaded")
