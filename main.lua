@@ -14,7 +14,13 @@ local player = Players.LocalPlayer
 _G.DungeonMaster = true  -- DEFAULT ON
 _G.AutoStart = true      -- DEFAULT ON
 _G.GodMode = true        -- DEFAULT ON
+
+-- [WEBHOOK SETTINGS]
 local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
+
+-- [GLOBAL RUN TRACKER]
+if not getgenv().SanjiTotalRuns then getgenv().SanjiTotalRuns = 0 end
+getgenv().SanjiTotalRuns = getgenv().SanjiTotalRuns + 1 -- Adds 1 run every time script executes
 
 local visitedMobs = {} 
 local lastMB1 = 0              
@@ -252,26 +258,29 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. WEBHOOK FUNCTIONALITY (ONCE ON EXECUTE + ABBREVIATION)
+-- 6. WEBHOOK FUNCTIONALITY (ONCE ON EXECUTE + ABBREVIATION + TOTAL RUNS)
 -- ==============================================================================
 local function sendInventoryUpdate()
     local success, err = pcall(function()
         local Inventory = workspace.Inventories:FindFirstChild(player.Name)
         if not Inventory then return end
         
-        local currentXP = abbreviateNumber(Inventory.Experience.Value)
-        local neededXP = abbreviateNumber(Inventory.ExperienceNeeded.Value)
+        local currentRaw = Inventory.Experience.Value
+        local neededRaw = Inventory.ExperienceNeeded.Value
+        local currentXP = abbreviateNumber(currentRaw)
+        local neededXP = abbreviateNumber(neededRaw)
 
         local levelInfo = string.format("Level: %d\nXP: %s/%s", 
-            Inventory.Level.Value, 
-            currentXP, 
-            neededXP)
+            Inventory.Level.Value, currentXP, neededXP)
 
         local currentItems = #Inventory.Items:GetChildren()
         local maxItems = Inventory.MaxItems.Value
         local storageInfo = string.format("Inventory Space: %d/%d", currentItems, maxItems)
+        
+        -- TOTAL RUNS DISPLAY (Tracks executions)
+        local runsTotal = string.format("Total Runs: %d", getgenv().SanjiTotalRuns)
 
-        local finalMessage = "=== PLAYER STATS ===\n" .. levelInfo .. "\n" .. storageInfo .. "\n===================="
+        local finalMessage = "=== PLAYER STATS ===\n" .. levelInfo .. "\n" .. storageInfo .. "\n" .. runsTotal .. "\n===================="
 
         local data = {["content"] = finalMessage}
 
@@ -296,4 +305,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Instant Abbreviated Webhook) Loaded")
+print("[Script] Sanji's Final Master Hub Loaded")
