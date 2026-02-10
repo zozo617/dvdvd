@@ -19,7 +19,6 @@ _G.GodMode = true        -- DEFAULT ON
 local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
 
 -- [PERSISTENT RUN TRACKER]
--- This saves the run count to a file so it doesn't reset on server hop
 local RunFileName = "SanjiRuns.txt"
 local totalRuns = 0
 
@@ -210,7 +209,7 @@ local function getNextTarget()
 end
 
 -- ==============================================================================
--- 5. NAVIGATION (INCLUDES ARCTIC COLOSSUS 30 STUD LOGIC)
+-- 5. NAVIGATION (FIXED ARCTIC COLOSSUS 30 STUDS)
 -- ==============================================================================
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char.HumanoidRootPart; local hum = char.Humanoid; local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart")
@@ -225,17 +224,22 @@ local function runTo(targetModel, mode)
     lastPos = root.Position
     checkWallAndJump()
 
-    -- === SPECIFIC ARCTIC COLOSSUS LOGIC (30 STUDS) ===
-    if targetModel.Name == "Arctic Colossus" then
-        updateStatus("BOSS: Arctic Colossus (30 Studs)")
-        if d < 30 then
-            root.Anchored = true
-            root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
-            castSkills()
-            return -- Stop here, do not run default movement
-        end
+    -- === DYNAMIC STOP RANGE ===
+    -- If Arctic Colossus, stop at 30. Everyone else, stop at 12.
+    local isColossus = string.find(targetModel.Name, "Arctic Colossus")
+    local stopRange = isColossus and 30 or 12
+
+    if isColossus then updateStatus("BOSS: Colossus (30 Studs)") end
+
+    -- === ANCHOR CHECK (Applies to everyone based on stopRange) ===
+    if d <= stopRange then
+        root.Anchored = true
+        root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
+        castSkills()
+        return -- STOP HERE. Do not pathfind if we are in range.
     end
 
+    -- === SPECIAL MODES ===
     if mode == "AGGRO_COMBO" then
         updateStatus("AGGRO SWEEP: " .. targetModel.Name)
         if d < 25 then visitedMobs[targetModel] = true; return end
@@ -257,12 +261,23 @@ local function runTo(targetModel, mode)
         if path.Status == Enum.PathStatus.Success then
             for _, wp in ipairs(path:GetWaypoints()) do
                 if not _G.DungeonMaster then break end
+                
+                -- Dynamic Distance Check INSIDE the loop
+                -- If we get close enough to the boss while walking, stop immediately.
+                local distNow = (root.Position - enemyRoot.Position).Magnitude
+                if distNow <= stopRange then
+                    hum:MoveTo(root.Position) -- Stop moving
+                    return -- Break loop to trigger anchor on next frame
+                end
+
                 if wp.Position.Y > root.Position.Y + 1.5 then hum.Jump = true end
                 hum:MoveTo(wp.Position); autoClick(); checkWallAndJump()
+                
                 local t = 0; while (root.Position - wp.Position).Magnitude > 4 do 
                     RunService.Heartbeat:Wait(); t = t + 1; 
                     if t > 30 then hum.Jump = true; break end 
                 end
+                
                 if mode == "AGGRO_COMBO" and (root.Position - enemyRoot.Position).Magnitude < 25 then visitedMobs[targetModel] = true; return end
             end
         else hum:MoveTo(enemyRoot.Position) end
@@ -317,4 +332,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Runs Saver Fix) Loaded")
+print("[Script] Sanji's Master Hub (Fixed Colossus 30-Stud) Loaded")
