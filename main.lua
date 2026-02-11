@@ -11,9 +11,70 @@ local player = Players.LocalPlayer
 -- ==============================================================================
 -- 0. CONFIGURATION & STATE
 -- ==============================================================================
-_G.DungeonMaster = true  -- DEFAULT ON
-_G.AutoStart = true      -- DEFAULT ON
-_G.GodMode = true        -- DEFAULT ON
+-- Default Values (Will be overwritten by LoadSettings)
+_G.DungeonMaster = true  
+_G.AutoStart = true      
+_G.GodMode = true        
+_G.AutoSell = true       
+
+-- [AUTO SELL SETTINGS]
+local SellSettings = {
+    Types = {
+        ["Weapon"]   = true,
+        ["Leggings"] = true,
+        ["Armor"]    = true,
+        ["Helmet"]   = true,
+        ["Emblem"]   = false, 
+        ["Spell"]    = true
+    },
+    Rarities = {
+        [1] = true,  -- Common
+        [2] = true,  -- Uncommon
+        [3] = true,  -- Rare
+        [4] = true,  -- Epic
+        [5] = false, -- Legendary
+        [6] = false, -- Mythic
+        [7] = false  -- Fabled (Renamed from Exotic)
+    }
+}
+
+-- [SETTINGS SYSTEM]
+local SettingsFileName = "SanjiHubSettings.json"
+
+local function SaveSettings()
+    local data = {
+        DungeonMaster = _G.DungeonMaster,
+        AutoStart = _G.AutoStart,
+        GodMode = _G.GodMode,
+        AutoSell = _G.AutoSell,
+        SellConfig = SellSettings
+    }
+    pcall(function()
+        writefile(SettingsFileName, HttpService:JSONEncode(data))
+    end)
+end
+
+local function LoadSettings()
+    if isfile and isfile(SettingsFileName) then
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile(SettingsFileName))
+        end)
+        if success and result then
+            if result.DungeonMaster ~= nil then _G.DungeonMaster = result.DungeonMaster end
+            if result.AutoStart ~= nil then _G.AutoStart = result.AutoStart end
+            if result.GodMode ~= nil then _G.GodMode = result.GodMode end
+            if result.AutoSell ~= nil then _G.AutoSell = result.AutoSell end
+            if result.SellConfig then 
+                -- Merge saved config carefully
+                for k, v in pairs(result.SellConfig.Types or {}) do SellSettings.Types[k] = v end
+                for k, v in pairs(result.SellConfig.Rarities or {}) do SellSettings.Rarities[tonumber(k)] = v end
+            end
+        end
+    end
+end
+
+-- Load settings immediately
+LoadSettings()
 
 -- [WEBHOOK SETTINGS]
 local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
@@ -41,7 +102,7 @@ local hasStarted = false
 local lastPos = Vector3.new(0,0,0) 
 local stuckCount = 0
 
--- Wait for inventory to load (for webhook)
+-- Wait for inventory to load
 task.spawn(function()
     repeat task.wait() until workspace:FindFirstChild("Inventories")
     repeat task.wait() until workspace.Inventories:FindFirstChild(player.Name)
@@ -66,7 +127,7 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 2. UI SETUP (MOBILE DRAGGABLE)
+-- 2. UI SETUP (MOBILE DRAGGABLE + SETTINGS AWARE)
 -- ==============================================================================
 if player.PlayerGui:FindFirstChild("SanjiUnified") then player.PlayerGui.SanjiUnified:Destroy() end
 local screenGui = Instance.new("ScreenGui", player.PlayerGui); screenGui.Name = "SanjiUnified"
@@ -90,7 +151,7 @@ local function makeDraggable(guiObject)
     end)
 end
 
-local mainFrame = Instance.new("Frame", screenGui); mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,220); mainFrame.Visible = false
+local mainFrame = Instance.new("Frame", screenGui); mainFrame.BackgroundColor3=Color3.fromRGB(15,15,20); mainFrame.Position=UDim2.new(0.5, -90, 0.3, 0); mainFrame.Size=UDim2.new(0,180,0,260); mainFrame.Visible = false
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10); makeDraggable(mainFrame)
 
 local statusFrame = Instance.new("Frame", screenGui); statusFrame.Size = UDim2.new(0, 200, 0, 30); statusFrame.AnchorPoint = Vector2.new(0.5, 0); statusFrame.Position = UDim2.new(0.5, 0, 0.75, 0); statusFrame.BackgroundColor3 = Color3.fromRGB(0,0,0); statusFrame.BackgroundTransparency = 0.5
@@ -108,9 +169,54 @@ local function createButton(text, pos, color, callback)
     return btn
 end
 
-createButton("AUTO FARM: ON", 35, Color3.fromRGB(0,180,100), function(b) _G.DungeonMaster = not _G.DungeonMaster; b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60); b.Text = _G.DungeonMaster and "AUTO FARM: ON" or "AUTO FARM: OFF" end)
-createButton("AUTO START: ON", 80, Color3.fromRGB(0,140,255), function(b) _G.AutoStart = not _G.AutoStart; b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80); b.Text = _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF" end)
-createButton("GOD MODE: ON", 125, Color3.fromRGB(140,0,255), function(b) _G.GodMode = not _G.GodMode; b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80); b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF" end)
+-- Create buttons with Initial State Check
+createButton(
+    _G.DungeonMaster and "AUTO FARM: ON" or "AUTO FARM: OFF", 
+    35, 
+    _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60), 
+    function(b) 
+        _G.DungeonMaster = not _G.DungeonMaster
+        b.BackgroundColor3 = _G.DungeonMaster and Color3.fromRGB(0,180,100) or Color3.fromRGB(200,60,60)
+        b.Text = _G.DungeonMaster and "AUTO FARM: ON" or "AUTO FARM: OFF"
+        SaveSettings()
+    end
+)
+
+createButton(
+    _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF", 
+    80, 
+    _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80), 
+    function(b) 
+        _G.AutoStart = not _G.AutoStart
+        b.BackgroundColor3 = _G.AutoStart and Color3.fromRGB(0,140,255) or Color3.fromRGB(80,80,80)
+        b.Text = _G.AutoStart and "AUTO START: ON" or "AUTO START: OFF"
+        SaveSettings()
+    end
+)
+
+createButton(
+    _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF", 
+    125, 
+    _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80), 
+    function(b) 
+        _G.GodMode = not _G.GodMode
+        b.BackgroundColor3 = _G.GodMode and Color3.fromRGB(140,0,255) or Color3.fromRGB(80,80,80)
+        b.Text = _G.GodMode and "GOD MODE: ON" or "GOD MODE: OFF"
+        SaveSettings()
+    end
+)
+
+createButton(
+    _G.AutoSell and "AUTO SELL: ON" or "AUTO SELL: OFF", 
+    170, 
+    _G.AutoSell and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80), 
+    function(b) 
+        _G.AutoSell = not _G.AutoSell
+        b.BackgroundColor3 = _G.AutoSell and Color3.fromRGB(255,100,0) or Color3.fromRGB(80,80,80)
+        b.Text = _G.AutoSell and "AUTO SELL: ON" or "AUTO SELL: OFF"
+        SaveSettings()
+    end
+)
 
 -- ==============================================================================
 -- 3. COMBAT & NAVIGATION UTILITY
@@ -152,7 +258,69 @@ local function abbreviateNumber(n)
 end
 
 -- ==============================================================================
--- 4. TARGETING
+-- 4. AUTO SELL LOGIC
+-- ==============================================================================
+local function getEquippedAndPinnedItems()
+    local equipped = {}
+    local playerInventory = Workspace.Inventories:FindFirstChild(player.Name)
+    if not playerInventory then return {} end
+    
+    local slots = {"Weapon", "Leggings", "Armor", "Helmet", "Emblem", "Spell1", "Spell2"}
+    
+    for _, slot in ipairs(slots) do
+        local equippedItem = playerInventory:FindFirstChild(slot)
+        if equippedItem and equippedItem:IsA("StringValue") then
+            equipped[equippedItem.Value] = true
+        end
+    end
+    
+    if playerInventory:FindFirstChild("Items") then
+        for _, item in pairs(playerInventory.Items:GetChildren()) do
+            if item:IsA("StringValue") then
+                local values = item.Value:split(",")
+                if values[#values] == "1" then
+                    equipped[item.Name] = true
+                end
+            end
+        end
+    end
+    return equipped
+end
+
+local function runAutoSell()
+    local playerInv = Workspace.Inventories:FindFirstChild(player.Name)
+    if not playerInv or not playerInv:FindFirstChild("Items") then return end
+    
+    local itemsFolder = playerInv.Items
+    local equippedItems = getEquippedAndPinnedItems()
+    
+    for _, item in pairs(itemsFolder:GetChildren()) do
+        if item:IsA("StringValue") then
+            local itemData = item.Value:split(",")
+            local itemName = itemData[1]
+            local itemRarity = tonumber(itemData[2])
+            
+            if not equippedItems[item.Name] and SellSettings.Rarities[itemRarity] then
+                local itemInfo = Workspace.Items:FindFirstChild(itemName)
+                if itemInfo and itemInfo:FindFirstChild("Info") then
+                    local itemType = itemInfo.Info.Value:split(",")[1]
+                    
+                    if SellSettings.Types[itemType] then
+                        local args = { [1] = { [1] = item.Name } }
+                        local sellRemote = ReplicatedStorage:FindFirstChild("SellItem")
+                        if sellRemote then
+                            sellRemote:FireServer(unpack(args))
+                            task.wait(0.1) 
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- ==============================================================================
+-- 5. TARGETING
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
@@ -167,21 +335,17 @@ local function getNextTarget()
             local mob = v.Parent
             local n = mob.Name
             
-            -- LEVEL 1: BOSSES (Highest Priority)
             if string.find(n, "Blizzard") or string.find(n, "Everfrost") or string.find(n, "Arctic Colossus") then
                 priorityBoss = mob
                 break 
             end
 
-            -- LEVEL 2: BONECHILL PROGENITOR (Kill Anchor)
             if string.find(n, "Bonechill Progenitor") then bonechill = mob end
 
-            -- LEVEL 3: FROSTWIND PROGENITOR (Aggro Sweep)
             if string.find(n, "Frostwind Progenitor") then
                 if not visitedMobs[mob] then table.insert(unvisitedFrostwinds, mob) end
             end
 
-            -- LEVEL 4: SNOWMAN OR GLACIAL (Closest Duel)
             if string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                 table.insert(elites, mob)
             end
@@ -191,14 +355,12 @@ local function getNextTarget()
     if priorityBoss then return priorityBoss, "KILL" end
     if bonechill then return bonechill, "KILL_ANCHOR" end
     
-    -- Sweep Frostwinds first (SORTED BY DISTANCE)
     if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
         return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
-    -- === CLOSEST ELITE LOGIC (SNOWMAN VS GLACIAL) ===
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
@@ -209,14 +371,13 @@ local function getNextTarget()
 end
 
 -- ==============================================================================
--- 5. NAVIGATION (FIXED ARCTIC COLOSSUS 30 STUDS)
+-- 6. NAVIGATION (FIXED ARCTIC COLOSSUS 30 STUDS)
 -- ==============================================================================
 local function runTo(targetModel, mode)
     local char = player.Character; local root = char.HumanoidRootPart; local hum = char.Humanoid; local enemyRoot = targetModel:FindFirstChild("HumanoidRootPart")
     if not enemyRoot then return end
     local d = (root.Position - enemyRoot.Position).Magnitude
 
-    -- STUCK CHECK
     if (root.Position - lastPos).Magnitude < 0.5 then
         stuckCount = stuckCount + 1
         if stuckCount > 20 then hum.Jump = true; stuckCount = 0 end 
@@ -224,22 +385,18 @@ local function runTo(targetModel, mode)
     lastPos = root.Position
     checkWallAndJump()
 
-    -- === DYNAMIC STOP RANGE ===
-    -- If Arctic Colossus, stop at 30. Everyone else, stop at 12.
     local isColossus = string.find(targetModel.Name, "Arctic Colossus")
     local stopRange = isColossus and 30 or 12
 
     if isColossus then updateStatus("BOSS: Colossus (30 Studs)") end
 
-    -- === ANCHOR CHECK (Applies to everyone based on stopRange) ===
     if d <= stopRange then
         root.Anchored = true
         root.CFrame = CFrame.new(root.Position, Vector3.new(enemyRoot.Position.X, root.Position.Y, enemyRoot.Position.Z))
         castSkills()
-        return -- STOP HERE. Do not pathfind if we are in range.
+        return 
     end
 
-    -- === SPECIAL MODES ===
     if mode == "AGGRO_COMBO" then
         updateStatus("AGGRO SWEEP: " .. targetModel.Name)
         if d < 25 then visitedMobs[targetModel] = true; return end
@@ -262,12 +419,10 @@ local function runTo(targetModel, mode)
             for _, wp in ipairs(path:GetWaypoints()) do
                 if not _G.DungeonMaster then break end
                 
-                -- Dynamic Distance Check INSIDE the loop
-                -- If we get close enough to the boss while walking, stop immediately.
                 local distNow = (root.Position - enemyRoot.Position).Magnitude
                 if distNow <= stopRange then
-                    hum:MoveTo(root.Position) -- Stop moving
-                    return -- Break loop to trigger anchor on next frame
+                    hum:MoveTo(root.Position) 
+                    return 
                 end
 
                 if wp.Position.Y > root.Position.Y + 1.5 then hum.Jump = true end
@@ -285,7 +440,7 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 6. WEBHOOK FUNCTIONALITY (ONCE ON EXECUTE + ABBREVIATION + TOTAL RUNS)
+-- 7. WEBHOOK FUNCTIONALITY
 -- ==============================================================================
 local function sendInventoryUpdate()
     local success, err = pcall(function()
@@ -304,7 +459,6 @@ local function sendInventoryUpdate()
         local maxItems = Inventory.MaxItems.Value
         local storageInfo = string.format("Inventory Space: %d/%d", currentItems, maxItems)
         
-        -- TOTAL RUNS DISPLAY (PERSISTENT)
         local runsTotal = string.format("Total Runs: %d", totalRuns)
 
         local finalMessage = "=== PLAYER STATS ===\n" .. levelInfo .. "\n" .. storageInfo .. "\n" .. runsTotal .. "\n===================="
@@ -321,9 +475,22 @@ local function sendInventoryUpdate()
 end
 
 -- ==============================================================================
--- 7. MAIN LOOPS
+-- 8. MAIN LOOPS
 -- ==============================================================================
+-- Auto Start
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
+
+-- Auto Sell Loop
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if _G.AutoSell then
+            pcall(runAutoSell)
+        end
+    end
+end)
+
+-- Dungeon Loop
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
 -- Webhook Execute (Once)
@@ -332,4 +499,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Fixed Colossus 30-Stud) Loaded")
+print("[Script] Sanji's Master Hub (Auto-Save Enabled) Loaded")
