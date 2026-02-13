@@ -319,44 +319,36 @@ local function runAutoSell()
 end
 
 -- ==============================================================================
--- 5. TARGETING (ABSOLUTE COLOSSUS PRIORITY + CLEANUP)
+-- 5. TARGETING (IRONCLAD COLOSSUS PRIORITY)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
     local rootPos = char.HumanoidRootPart.Position
+    
+    local arcticColossus = nil
+    local otherBoss = nil
+    local bonechill = nil
+    local unvisitedFrostwinds = {}
     local elites = {}
     local normals = {} 
-    local priorityBoss = nil
-    local unvisitedFrostwinds = {}
-    local bonechill = nil
 
     for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
             local mob = v.Parent
             local n = mob.Name
             
+            -- Make sure it's an enemy, not a player
             if not Players:GetPlayerFromCharacter(mob) then
-                -- LEVEL 0: ABSOLUTE PRIORITY (Ignores EVERYTHING else instantly)
                 if string.find(n, "Arctic Colossus") then
-                    return mob, "KILL" 
-                
-                -- LEVEL 1: OTHER BOSSES
+                    arcticColossus = mob -- Grab Colossus immediately
                 elseif string.find(n, "Blizzard") or string.find(n, "Everfrost") then
-                    priorityBoss = mob
-                    
-                -- LEVEL 2: BONECHILL
+                    otherBoss = mob
                 elseif string.find(n, "Bonechill Progenitor") then 
                     bonechill = mob 
-                    
-                -- LEVEL 3: FROSTWIND
                 elseif string.find(n, "Frostwind Progenitor") then
                     if not visitedMobs[mob] then table.insert(unvisitedFrostwinds, mob) end
-                    
-                -- LEVEL 4: ELITES
                 elseif string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                     table.insert(elites, mob)
-                    
-                -- LEVEL 5: NORMAL MOBS (Cleanup)
                 else
                     table.insert(normals, mob)
                 end
@@ -364,21 +356,30 @@ local function getNextTarget()
         end
     end
     
-    if priorityBoss then return priorityBoss, "KILL" end
+    -- PRIORITY 1: ARCTIC COLOSSUS (ABSOLUTE OVERRIDE)
+    if arcticColossus then return arcticColossus, "KILL" end
+    
+    -- PRIORITY 2: OTHER BOSSES
+    if otherBoss then return otherBoss, "KILL" end
+    
+    -- PRIORITY 3: BONECHILL
     if bonechill then return bonechill, "KILL_ANCHOR" end
     
+    -- PRIORITY 4: FROSTWIND SWEEP
     if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
         return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
+    -- PRIORITY 5: ELITES (SNOWMAN/GLACIAL)
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
         return elites[1], "KILL"
     end
 
+    -- PRIORITY 6: NORMAL MOBS (CLEANUP)
     if #normals > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(normals, function(a, b) return d(a) < d(b) end)
@@ -517,4 +518,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Colossus Absolute Priority Fix) Loaded")
+print("[Script] Sanji's Master Hub (Absolute Colossus Priority) Loaded")
