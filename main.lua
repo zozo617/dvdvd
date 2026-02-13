@@ -319,13 +319,13 @@ local function runAutoSell()
 end
 
 -- ==============================================================================
--- 5. TARGETING (FIXED: KILLS NORMAL MOBS TOO)
+-- 5. TARGETING (ABSOLUTE COLOSSUS PRIORITY + CLEANUP)
 -- ==============================================================================
 local function getNextTarget()
     local char = player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil, "CLEAR" end
     local rootPos = char.HumanoidRootPart.Position
     local elites = {}
-    local normals = {} -- Array for regular grunt mobs
+    local normals = {} 
     local priorityBoss = nil
     local unvisitedFrostwinds = {}
     local bonechill = nil
@@ -335,21 +335,27 @@ local function getNextTarget()
             local mob = v.Parent
             local n = mob.Name
             
-            -- Make sure it's an actual enemy, not another player
             if not Players:GetPlayerFromCharacter(mob) then
-                -- LEVEL 1: BOSSES
-                if string.find(n, "Blizzard") or string.find(n, "Everfrost") or string.find(n, "Arctic Colossus") then
+                -- LEVEL 0: ABSOLUTE PRIORITY (Ignores EVERYTHING else instantly)
+                if string.find(n, "Arctic Colossus") then
+                    return mob, "KILL" 
+                
+                -- LEVEL 1: OTHER BOSSES
+                elseif string.find(n, "Blizzard") or string.find(n, "Everfrost") then
                     priorityBoss = mob
-                    break 
+                    
                 -- LEVEL 2: BONECHILL
                 elseif string.find(n, "Bonechill Progenitor") then 
                     bonechill = mob 
+                    
                 -- LEVEL 3: FROSTWIND
                 elseif string.find(n, "Frostwind Progenitor") then
                     if not visitedMobs[mob] then table.insert(unvisitedFrostwinds, mob) end
+                    
                 -- LEVEL 4: ELITES
                 elseif string.find(n, "Possessed Snowman") or string.find(n, "Glacial Elemental") then
                     table.insert(elites, mob)
+                    
                 -- LEVEL 5: NORMAL MOBS (Cleanup)
                 else
                     table.insert(normals, mob)
@@ -373,7 +379,6 @@ local function getNextTarget()
         return elites[1], "KILL"
     end
 
-    -- IF NO ELITES LEFT, KILL NORMAL MOBS BEFORE EXITING
     if #normals > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(normals, function(a, b) return d(a) < d(b) end)
@@ -512,4 +517,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Full Dungeon Cleanup Fix) Loaded")
+print("[Script] Sanji's Master Hub (Colossus Absolute Priority Fix) Loaded")
