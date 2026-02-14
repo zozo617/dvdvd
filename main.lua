@@ -98,7 +98,7 @@ local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 local hasStarted = false
 local lastPos = Vector3.new(0,0,0) 
 local stuckCount = 0
-local skillTimers = {Q = 0, R = 0, F = 0} -- Added for skill throttling
+local skillTimers = {Q = 0, R = 0, F = 0} 
 
 -- Wait for inventory to load
 task.spawn(function()
@@ -107,40 +107,41 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 1. SMART GOD MODE (HUMANIZED)
+-- 1. SUPER SAFE SMART GOD MODE
 -- ==============================================================================
 local isVulnerable = false -- Internal toggle
 
--- Safety Net: Force God Mode if HP is low
+-- Safety Net: FORCE God Mode ON if HP drops below 90% (Increased from 80%)
 task.spawn(function()
     while true do
         task.wait(0.1)
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             local hum = player.Character.Humanoid
-            if hum.Health < (hum.MaxHealth * 0.8) then
-                isVulnerable = false -- FORCE PROTECTION
+            -- If health drops even slightly below 90%, LOCK protection instantly.
+            if hum.Health < (hum.MaxHealth * 0.90) then
+                isVulnerable = false 
             end
         end
     end
 end)
 
--- Random Vulnerability Loop
+-- Random Vulnerability Loop (Safer Timing)
 task.spawn(function()
     while true do
-        task.wait(math.random(15, 30)) -- Wait random 15-30s
+        task.wait(math.random(40, 80)) -- Much rarer frequency (every ~1 minute)
         if _G.GodMode then
             local char = player.Character
-            -- Only allow damage if we are healthy (>90% HP)
-            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > (char.Humanoid.MaxHealth * 0.9) then
+            -- Only allow damage if we are nearly full health (>95%)
+            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > (char.Humanoid.MaxHealth * 0.95) then
                 isVulnerable = true
-                task.wait(0.5) -- Take damage for 0.5s
+                task.wait(0.1) -- SUPER SHORT WINDOW (0.1s). Only takes 1 tick of damage.
                 isVulnerable = false
             end
         end
     end
 end)
 
--- Hook with Smart Logic
+-- Hook
 task.spawn(function()
     pcall(function()
         local DamageRemote = ReplicatedStorage:WaitForChild("Damage", 10)
@@ -148,7 +149,7 @@ task.spawn(function()
         if h and DamageRemote then
             local OldNameCall; OldNameCall = h(game, "__namecall", newcclosure(function(Self, ...)
                 if _G.GodMode and (Self == DamageRemote or (Self.Name == "Damage" and Self.Parent == ReplicatedStorage)) and getnamecallmethod() == "FireServer" then
-                    -- If NOT vulnerable, block damage. If vulnerable, let it pass.
+                    -- If NOT vulnerable, block damage.
                     if not isVulnerable then
                         return nil 
                     end
@@ -531,7 +532,7 @@ end
 task.spawn(function()
     local SpellRemote = ReplicatedStorage:WaitForChild("Spell")
     while true do
-        task.wait(1.5) -- Check every 1.5s
+        task.wait(1.5) -- Check every 1.5s to avoid spam
         if _G.DungeonMaster then
             pcall(function()
                 local char = player.Character
@@ -572,4 +573,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Smart God Mode Integrated) Loaded")
+print("[Script] Sanji's Master Hub (Safer God Mode Integrated) Loaded")
