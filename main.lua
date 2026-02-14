@@ -11,6 +11,7 @@ local player = Players.LocalPlayer
 -- ==============================================================================
 -- 0. CONFIGURATION & STATE
 -- ==============================================================================
+-- Default Values (Will be overwritten by LoadSettings)
 _G.DungeonMaster = true  
 _G.AutoStart = true      
 _G.GodMode = true        
@@ -71,6 +72,7 @@ local function LoadSettings()
     end
 end
 
+-- Load settings immediately
 LoadSettings()
 
 -- [WEBHOOK SETTINGS]
@@ -98,7 +100,6 @@ local ClickEvent = ReplicatedStorage:WaitForChild("Click")
 local hasStarted = false
 local lastPos = Vector3.new(0,0,0) 
 local stuckCount = 0
-local skillTimers = {Q = 0, R = 0, F = 0} 
 
 -- Wait for inventory to load
 task.spawn(function()
@@ -107,64 +108,8 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 1. SMART GOD MODE (CROWD & HP AWARE)
+-- 1. GOD MODE HOOK
 -- ==============================================================================
-local isVulnerable = false -- Default: Protected
-
--- Safety Net: Force God Mode ON if HP drops below 95%
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            local hum = player.Character.Humanoid
-            -- If health drops below 95%, LOCK protection instantly.
-            if hum.Health < (hum.MaxHealth * 0.95) then
-                isVulnerable = false 
-            end
-        end
-    end
-end)
-
--- Vulnerability Loop (Checks Crowd + HP)
-task.spawn(function()
-    while true do
-        task.wait(math.random(40, 80)) -- Every 40-80 seconds
-        if _G.GodMode then
-            local char = player.Character
-            if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
-                local hum = char.Humanoid
-                local root = char.HumanoidRootPart
-                
-                -- CHECK 1: ARE WE FULL HP? (Allow tiny margin for floating point errors)
-                local isFullHp = hum.Health >= (hum.MaxHealth * 0.99)
-                
-                -- CHECK 2: ARE THERE TOO MANY ENEMIES?
-                local enemyCount = 0
-                for _, v in pairs(Workspace:GetDescendants()) do
-                    if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
-                        if not Players:GetPlayerFromCharacter(v.Parent) then
-                            local enemyRoot = v.Parent.HumanoidRootPart
-                            if (enemyRoot.Position - root.Position).Magnitude < 30 then
-                                enemyCount = enemyCount + 1
-                            end
-                        end
-                    end
-                end
-                
-                local isSafeFromCrowd = (enemyCount < 3) -- Only turn off if less than 3 enemies
-
-                -- Only trigger vulnerability if Full HP AND Safe from Crowd
-                if isFullHp and isSafeFromCrowd then
-                    isVulnerable = true
-                    task.wait(0.1) -- 0.1s Vulnerability
-                    isVulnerable = false
-                end
-            end
-        end
-    end
-end)
-
--- God Mode Hook
 task.spawn(function()
     pcall(function()
         local DamageRemote = ReplicatedStorage:WaitForChild("Damage", 10)
@@ -172,10 +117,7 @@ task.spawn(function()
         if h and DamageRemote then
             local OldNameCall; OldNameCall = h(game, "__namecall", newcclosure(function(Self, ...)
                 if _G.GodMode and (Self == DamageRemote or (Self.Name == "Damage" and Self.Parent == ReplicatedStorage)) and getnamecallmethod() == "FireServer" then
-                    -- If NOT vulnerable, block damage.
-                    if not isVulnerable then
-                        return nil 
-                    end
+                    return nil 
                 end
                 return OldNameCall(Self, ...)
             end))
@@ -279,17 +221,11 @@ createButton(
 -- 3. COMBAT & NAVIGATION UTILITY
 -- ==============================================================================
 local function autoClick() if tick() - lastMB1 > MB1_COOLDOWN then ClickEvent:FireServer(true); lastMB1 = tick() end end
-
 local function castSkills()
     autoClick() 
-    -- Only cast Q, R, F here (E is handled in remote loop)
-    local now = tick()
-    for _, key in ipairs({"Q", "R", "F"}) do 
-        if now - skillTimers[key] > 2 then
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
-            skillTimers[key] = now
-        end
+    for _, key in ipairs({"Q", "E", "R", "F"}) do 
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode[key], false, game)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode[key], false, game)
     end
 end
 
@@ -401,9 +337,10 @@ local function getNextTarget()
             local mob = v.Parent
             local n = mob.Name
             
+            -- Make sure it's an enemy, not a player
             if not Players:GetPlayerFromCharacter(mob) then
                 if string.find(n, "Arctic Colossus") then
-                    arcticColossus = mob 
+                    arcticColossus = mob -- Grab Colossus immediately
                 elseif string.find(n, "Blizzard") or string.find(n, "Everfrost") then
                     otherBoss = mob
                 elseif string.find(n, "Bonechill Progenitor") then 
@@ -419,22 +356,30 @@ local function getNextTarget()
         end
     end
     
+    -- PRIORITY 1: ARCTIC COLOSSUS (ABSOLUTE OVERRIDE)
     if arcticColossus then return arcticColossus, "KILL" end
+    
+    -- PRIORITY 2: OTHER BOSSES
     if otherBoss then return otherBoss, "KILL" end
+    
+    -- PRIORITY 3: BONECHILL
     if bonechill then return bonechill, "KILL_ANCHOR" end
     
+    -- PRIORITY 4: FROSTWIND SWEEP
     if #unvisitedFrostwinds > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(unvisitedFrostwinds, function(a, b) return d(a) < d(b) end)
         return unvisitedFrostwinds[1], "AGGRO_COMBO"
     end
 
+    -- PRIORITY 5: ELITES (SNOWMAN/GLACIAL)
     if #elites > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(elites, function(a, b) return d(a) < d(b) end)
         return elites[1], "KILL"
     end
 
+    -- PRIORITY 6: NORMAL MOBS (CLEANUP)
     if #normals > 0 then
         local function d(m) return (rootPos - m.HumanoidRootPart.Position).Magnitude end
         table.sort(normals, function(a, b) return d(a) < d(b) end)
@@ -551,29 +496,6 @@ end
 -- ==============================================================================
 -- 8. MAIN LOOPS
 -- ==============================================================================
--- E-SKILL REMOTE LOOP (1.5s Interval)
-task.spawn(function()
-    local SpellRemote = ReplicatedStorage:WaitForChild("Spell")
-    while true do
-        task.wait(1.5) -- Check every 1.5s
-        if _G.DungeonMaster then
-            pcall(function()
-                local char = player.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local root = char.HumanoidRootPart
-                    local args = {
-                        [1] = "Spell2",
-                        [2] = root.Position, 
-                        [3] = root.CFrame.LookVector,
-                        [4] = 0
-                    }
-                    SpellRemote:FireServer(unpack(args))
-                end
-            end)
-        end
-    end
-end)
-
 -- Auto Start
 task.spawn(function() while true do task.wait(1) if _G.AutoStart and not hasStarted then local r = ReplicatedStorage:FindFirstChild("Start") if r then pcall(function() r:FireServer() end) hasStarted = true; updateStatus("START TRIGGERED") end end end end)
 
@@ -596,4 +518,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Crowd-Safe God Mode) Loaded")
+print("[Script] Sanji's Master Hub (Absolute Colossus Priority) Loaded")
