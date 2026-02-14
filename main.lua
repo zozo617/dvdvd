@@ -107,41 +107,64 @@ task.spawn(function()
 end)
 
 -- ==============================================================================
--- 1. SUPER SAFE SMART GOD MODE
+-- 1. SMART GOD MODE (CROWD & HP AWARE)
 -- ==============================================================================
-local isVulnerable = false -- Internal toggle
+local isVulnerable = false -- Default: Protected
 
--- Safety Net: FORCE God Mode ON if HP drops below 90% (Increased from 80%)
+-- Safety Net: Force God Mode ON if HP drops below 95%
 task.spawn(function()
     while true do
         task.wait(0.1)
         if player.Character and player.Character:FindFirstChild("Humanoid") then
             local hum = player.Character.Humanoid
-            -- If health drops even slightly below 90%, LOCK protection instantly.
-            if hum.Health < (hum.MaxHealth * 0.90) then
+            -- If health drops below 95%, LOCK protection instantly.
+            if hum.Health < (hum.MaxHealth * 0.95) then
                 isVulnerable = false 
             end
         end
     end
 end)
 
--- Random Vulnerability Loop (Safer Timing)
+-- Vulnerability Loop (Checks Crowd + HP)
 task.spawn(function()
     while true do
-        task.wait(math.random(40, 80)) -- Much rarer frequency (every ~1 minute)
+        task.wait(math.random(40, 80)) -- Every 40-80 seconds
         if _G.GodMode then
             local char = player.Character
-            -- Only allow damage if we are nearly full health (>95%)
-            if char and char:FindFirstChild("Humanoid") and char.Humanoid.Health > (char.Humanoid.MaxHealth * 0.95) then
-                isVulnerable = true
-                task.wait(0.1) -- SUPER SHORT WINDOW (0.1s). Only takes 1 tick of damage.
-                isVulnerable = false
+            if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+                local hum = char.Humanoid
+                local root = char.HumanoidRootPart
+                
+                -- CHECK 1: ARE WE FULL HP? (Allow tiny margin for floating point errors)
+                local isFullHp = hum.Health >= (hum.MaxHealth * 0.99)
+                
+                -- CHECK 2: ARE THERE TOO MANY ENEMIES?
+                local enemyCount = 0
+                for _, v in pairs(Workspace:GetDescendants()) do
+                    if v:IsA("Humanoid") and v.Parent ~= char and v.Health > 0 and v.Parent:FindFirstChild("HumanoidRootPart") then
+                        if not Players:GetPlayerFromCharacter(v.Parent) then
+                            local enemyRoot = v.Parent.HumanoidRootPart
+                            if (enemyRoot.Position - root.Position).Magnitude < 30 then
+                                enemyCount = enemyCount + 1
+                            end
+                        end
+                    end
+                end
+                
+                local isSafeFromCrowd = (enemyCount < 3) -- Only turn off if less than 3 enemies
+
+                -- Only trigger vulnerability if Full HP AND Safe from Crowd
+                if isFullHp and isSafeFromCrowd then
+                    isVulnerable = true
+                    task.wait(0.1) -- 0.1s Vulnerability
+                    isVulnerable = false
+                end
             end
         end
     end
 end)
 
--- Hook
+-- God Mode Hook
 task.spawn(function()
     pcall(function()
         local DamageRemote = ReplicatedStorage:WaitForChild("Damage", 10)
@@ -532,7 +555,7 @@ end
 task.spawn(function()
     local SpellRemote = ReplicatedStorage:WaitForChild("Spell")
     while true do
-        task.wait(1.5) -- Check every 1.5s to avoid spam
+        task.wait(1.5) -- Check every 1.5s
         if _G.DungeonMaster then
             pcall(function()
                 local char = player.Character
@@ -573,4 +596,4 @@ task.spawn(function()
     sendInventoryUpdate()
 end)
 
-print("[Script] Sanji's Master Hub (Safer God Mode Integrated) Loaded")
+print("[Script] Sanji's Master Hub (Crowd-Safe God Mode) Loaded")
