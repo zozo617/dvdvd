@@ -8,9 +8,6 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 
--- [UNIVERSAL REQUEST HANDLER]
-local request = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-
 -- ==============================================================================
 -- 0. CONFIGURATION & STATE
 -- ==============================================================================
@@ -18,14 +15,7 @@ local request = (syn and syn.request) or (http and http.request) or http_request
 _G.DungeonMaster = true  
 _G.AutoStart = true      
 _G.GodMode = true        
-_G.AutoSell = true       
-
--- [WEBHOOK CONFIG]
-local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
-local webhookEnabled = true
-local PingLegendary = false
-local PingMythic = false
-local PingFabled = false
+_G.AutoSell = true        
 
 -- [AUTO SELL SETTINGS]
 local SellSettings = {
@@ -57,12 +47,7 @@ local function SaveSettings()
         AutoStart = _G.AutoStart,
         GodMode = _G.GodMode,
         AutoSell = _G.AutoSell,
-        SellConfig = SellSettings,
-        WebhookUrl = webhookUrl,
-        WebhookEnabled = webhookEnabled,
-        PingL = PingLegendary,
-        PingM = PingMythic,
-        PingF = PingFabled
+        SellConfig = SellSettings
     }
     pcall(function()
         writefile(SettingsFileName, HttpService:JSONEncode(data))
@@ -79,12 +64,6 @@ local function LoadSettings()
             if result.AutoStart ~= nil then _G.AutoStart = result.AutoStart end
             if result.GodMode ~= nil then _G.GodMode = result.GodMode end
             if result.AutoSell ~= nil then _G.AutoSell = result.AutoSell end
-            if result.WebhookUrl ~= nil then webhookUrl = result.WebhookUrl end
-            if result.WebhookEnabled ~= nil then webhookEnabled = result.WebhookEnabled end
-            if result.PingL ~= nil then PingLegendary = result.PingL end
-            if result.PingM ~= nil then PingMythic = result.PingM end
-            if result.PingF ~= nil then PingFabled = result.PingF end
-            
             if result.SellConfig then 
                 for k, v in pairs(result.SellConfig.Types or {}) do SellSettings.Types[k] = v end
                 for k, v in pairs(result.SellConfig.Rarities or {}) do SellSettings.Rarities[tonumber(k)] = v end
@@ -95,6 +74,9 @@ end
 
 -- Load settings immediately
 LoadSettings()
+
+-- [WEBHOOK SETTINGS]
+local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
 
 -- [PERSISTENT RUN TRACKER]
 local RunFileName = "SanjiRuns.txt"
@@ -261,20 +243,18 @@ local function checkWallAndJump()
     if legRay and not headRay then char.Humanoid.Jump = true end
 end
 
--- HELPER: Abbreviate Numbers (UPDATED)
+-- HELPER: Abbreviate Numbers (FIXED)
 local function abbreviateNumber(n)
-    local suffixes = {"", "k", "m", "b", "t", "qa", "qi"}
+    local suffixes = {"", "k", "m", "b", "t", "qd", "qn", "sx", "sp", "oc", "n", "dc"}
     local i = 1
     while n >= 1000 and i < #suffixes do
         n = n / 1000
         i = i + 1
     end
-    return string.format("%.2f%s", n, suffixes[i])
-end
-
-local function getRarityEmoji(rarity)
-    local emojis = { ["legendary"]="🟡", ["mythic"]="🔴", ["fabled"]="⚫", ["epic"]="🟣", ["rare"]="🔵", ["uncommon"]="🟢", ["common"]="⚪" }
-    return emojis[string.lower(rarity)] or "❓"
+    -- Clean format: Removes trailing .00
+    local str = string.format("%.2f", n)
+    str = str:gsub("%.00$", "")
+    return str .. suffixes[i]
 end
 
 -- ==============================================================================
@@ -480,65 +460,39 @@ local function runTo(targetModel, mode)
 end
 
 -- ==============================================================================
--- 7. ADVANCED WEBHOOK FUNCTIONALITY (INTEGRATED)
+-- 7. WEBHOOK FUNCTIONALITY
 -- ==============================================================================
-local function getCurrentInventory()
-    local inventory = {totalCount = 0, itemData = {}}
-    local invFolder = Workspace.Inventories:FindFirstChild(player.Name)
-    if not invFolder or not invFolder:FindFirstChild("Items") then return inventory end
-    
-    for _, item in pairs(invFolder.Items:GetChildren()) do
-        if item:IsA("StringValue") then
-            local data = item.Value:split(",")
-            local itemName = data[1]:match("%d+_(.+)") or data[1]
-            local rarityId = tonumber(data[2])
-            local rarities = {[1]="Common", [2]="Uncommon", [3]="Rare", [4]="Epic", [5]="Legendary", [6]="Mythic", [7]="Fabled"}
-            local rName = rarities[rarityId] or "Unknown"
-            local fullName = string.format("%s (%s)", itemName, rName)
-            
-            inventory.totalCount = inventory.totalCount + 1
-            inventory.itemData[fullName] = (inventory.itemData[fullName] or 0) + 1
-        end
-    end
-    return inventory
-end
+local function sendInventoryUpdate()
+    local success, err = pcall(function()
+        local Inventory = workspace.Inventories:FindFirstChild(player.Name)
+        if not Inventory then return end
+        
+        local currentRaw = Inventory.Experience.Value
+        local neededRaw = Inventory.ExperienceNeeded.Value
+        local currentXP = abbreviateNumber(currentRaw)
+        local neededXP = abbreviateNumber(neededRaw)
 
-local function sendWebhook(title, description, fields, shouldPing)
-    if not webhookUrl or webhookUrl == "" or not webhookEnabled then return end
-    
-    local inv = Workspace.Inventories:FindFirstChild(player.Name)
-    if not inv then return end
-    
-    local xpStr = abbreviateNumber(inv.Experience.Value) .. "/" .. abbreviateNumber(inv.ExperienceNeeded.Value)
-    local currentInv = getCurrentInventory()
-    
-    local playerStats = string.format(
-        "👤 **%s**\n💰 Gold: %s\n📊 Level: %d\n⭐ XP: %s\n📦 Inventory: %d/%d\n🔄 Runs: %d",
-        player.Name, abbreviateNumber(inv.Gold.Value), inv.Level.Value, xpStr, currentInv.totalCount, inv.MaxItems.Value, totalRuns
-    )
+        local levelInfo = string.format("Level: %d\nXP: %s/%s", 
+            Inventory.Level.Value, currentXP, neededXP)
 
-    -- Add Emojis to Drop List
-    for _, field in ipairs(fields) do
-        if field.name == "📦 Drops" then
-            field.value = field.value:gsub("%((%w+)%)", function(r) return string.format("(%s %s)", getRarityEmoji(r), r) end)
-        end
-    end
+        local currentItems = #Inventory.Items:GetChildren()
+        local maxItems = Inventory.MaxItems.Value
+        local storageInfo = string.format("Inventory Space: %d/%d", currentItems, maxItems)
+        
+        local runsTotal = string.format("Total Runs: %d", totalRuns)
 
-    local embed = {
-        title = "📊 " .. title,
-        description = description .. "\n\n" .. playerStats,
-        fields = fields,
-        color = 5814783,
-        footer = {text="Sanji Goat Hub"},
-        timestamp = DateTime.now():ToIsoDate()
-    }
+        local finalMessage = "=== PLAYER STATS ===\n" .. levelInfo .. "\n" .. storageInfo .. "\n" .. runsTotal .. "\n===================="
 
-    request({
-        Url = webhookUrl,
-        Method = "POST",
-        Headers = {["Content-Type"]="application/json"},
-        Body = HttpService:JSONEncode({content = shouldPing and "@everyone" or "", embeds = {embed}})
-    })
+        local data = {["content"] = finalMessage}
+
+        local request = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+        request({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
 end
 
 -- ==============================================================================
@@ -560,39 +514,10 @@ end)
 -- Dungeon Loop
 task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbeat:Wait(); pcall(function() local t, m = getNextTarget(); if t then runTo(t, m) else visitedMobs = {}; local gates = {} for _, v in pairs(Workspace:GetDescendants()) do if v.Name == "Gate" or v.Name == "Portal" then table.insert(gates, v) end end if #gates > 0 then updateStatus("EXITING"); runTo({HumanoidRootPart = gates[1], Name = "Gate"}, "KILL") else updateStatus("SCANNING...") end end end) else task.wait(1) end end end)
 
--- Webhook Execute (Background Loop for Drops & Stats)
+-- Webhook Execute (Once)
 task.spawn(function()
-    local lastInventory = getCurrentInventory()
-    -- Initial Webhook
-    sendWebhook("Script Started", "Monitoring active.", {}, false)
-    
-    while true do
-        task.wait(5)
-        if webhookEnabled and webhookUrl ~= "" then
-            local current = getCurrentInventory()
-            local newItems = {}
-            local hasRare = false
-            
-            for name, count in pairs(current.itemData) do
-                local old = lastInventory.itemData[name] or 0
-                if count > old then
-                    local diff = count - old
-                    table.insert(newItems, string.format("%s x%d", name, diff))
-                    
-                    if (PingLegendary and name:find("Legendary")) or 
-                       (PingMythic and name:find("Mythic")) or 
-                       (PingFabled and name:find("Fabled")) then
-                        hasRare = true
-                    end
-                end
-            end
-            
-            if #newItems > 0 then
-                sendWebhook("Items Found", "", {{name="📦 Drops", value=table.concat(newItems, "\n"), inline=false}}, hasRare)
-            end
-            lastInventory = current
-        end
-    end
+    task.wait(5)
+    sendInventoryUpdate()
 end)
 
 print("[Script] Sanji's Master Hub (Absolute Colossus Priority) Loaded")
