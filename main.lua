@@ -24,7 +24,7 @@ _G.AutoSell = true
 local webhookUrl = "https://discord.com/api/webhooks/1446663395980873830/XIzk9dyFM1FOnggrSjTevw_nGonsWlc3P9lrDVLsoLg-oE3U6jU5iEedFp2oU8D_sotR"
 local webhookEnabled = true
 local PingLegendary = false
-local PingMythic = false
+local PingMythic = true
 local PingFabled = false
 
 -- [AUTO SELL SETTINGS]
