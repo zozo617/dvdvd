@@ -15,10 +15,10 @@ local request = (syn and syn.request) or (http and http.request) or http_request
 -- ==============================================================================
 -- 0. CONFIGURATION & STATE
 -- ==============================================================================
-_G.DungeonMaster = true
-_G.AutoStart = true
-_G.GodMode = true
-_G.AutoSell = true
+_G.DungeonMaster = true  
+_G.AutoStart = true      
+_G.GodMode = true        
+_G.AutoSell = true       
 
 -- [KINAYO AUTO DUNGEON CONFIG - UPDATED]
 _G.AutoCreate = false
@@ -578,6 +578,14 @@ task.spawn(function() while true do if _G.DungeonMaster then RunService.Heartbea
 task.spawn(function()
     task.wait(5)
     sendInventoryUpdate()
+end)
+
+-- [ADDED] Close UI after 3 seconds
+task.spawn(function()
+    task.wait(3)
+    if mainFrame then
+        mainFrame.Visible = false
+    end
 end)
 
 print("[Script] Sanji's Master Hub (Absolute Colossus Priority) Loaded")
